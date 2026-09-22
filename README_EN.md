@@ -12,8 +12,8 @@ This is a ComfyUI custom node tool collection carefully created by <span style="
 
 ## ✨ Main Features
 
-### 🌍 **Chinese Localization Support**
-Provides dedicated Chinese localization files, which can be used with the ComfyUI-DD-Translation extension to enable Chinese users to use various node functions more conveniently. For detailed instructions, please refer to <a href="doc/Localization_Guide.md">Localization_Guide.md</a>.
+### 🌍 **Built-in Chinese/English Localization**
+The node pack ships with its own Chinese dictionary and follows ComfyUI's **Language** setting, automatically switching node titles, descriptions, widget labels, port names and combo option text — no third-party translation extension required. Combo options only change their display text, while the submitted values stay in English. For detailed instructions, please refer to <a href="doc/Localization_Guide.md">Localization_Guide.md</a>.
 
 ### **Core Functionality Features**
 

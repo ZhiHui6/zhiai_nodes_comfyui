@@ -12,8 +12,8 @@
 
 ## ✨ 主要特点
 
-### 🌍 **中文本地化支持**
-提供专门的中文汉化文件，配合 ComfyUI-DD-Translation 扩展使用，让中文用户能够更便捷地使用各个节点功能。详细说明请参考 <a href="doc/Localization_Guide.md">Localization_Guide.md</a>。
+### 🌍 **中英双语支持（内置）**
+节点包自带中英双语词典，跟随 ComfyUI 的「语言 / Language」设置自动切换节点标题、说明、控件标签、端口名与下拉项显示，无需安装任何第三方翻译插件；下拉项仅改变显示文本，提交值保持英文原值。详细说明请参考 <a href="doc/Localization_Guide.md">Localization_Guide.md</a>。
 
 ### **核心功能特色**
 

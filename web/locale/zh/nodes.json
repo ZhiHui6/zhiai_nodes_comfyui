@@ -29,7 +29,9 @@
             "enable_prompt1": "启用提示词1",
             "prompt2_comment": "提示词2注释",
             "enable_prompt2": "启用提示词2",
-            "separator": "分隔符"
+            "separator": "分隔符",
+            "prompt1": "提示词1",
+            "prompt2": "提示词2"
         },
         "outputs": {
             "text_output": "文本输出"
@@ -44,6 +46,28 @@
         },
         "outputs": {
             "merged_text": "合并文本"
+        },
+        "inputs": {
+            "text_1": "文本1",
+            "text_2": "文本2",
+            "text_3": "文本3",
+            "text_4": "文本4",
+            "text_5": "文本5",
+            "text_6": "文本6",
+            "text_7": "文本7",
+            "text_8": "文本8",
+            "text_9": "文本9",
+            "text_10": "文本10",
+            "text_11": "文本11",
+            "text_12": "文本12",
+            "text_13": "文本13",
+            "text_14": "文本14",
+            "text_15": "文本15",
+            "text_16": "文本16",
+            "text_17": "文本17",
+            "text_18": "文本18",
+            "text_19": "文本19",
+            "text_20": "文本20"
         }
     },
     "PromptDelete": {
@@ -122,14 +146,34 @@
         "description": "动态文本切换器：支持可变数量的文本输入。提供手动模式（按索引选择）与自动模式（仅当唯一非空输入时输出；检测到多个非空将报错）。通过滑块 inputcount 控制端口数量，端口会自动同步变化。手动模式下选择菜单只显示已连接的端口序号。",
         "inputs": {
             "text1": "文本1",
-            "text2": "文本2"
+            "text2": "文本2",
+            "text3": "文本3",
+            "text4": "文本4",
+            "text5": "文本5",
+            "text6": "文本6",
+            "text7": "文本7",
+            "text8": "文本8",
+            "text9": "文本9",
+            "text10": "文本10",
+            "text11": "文本11",
+            "text12": "文本12"
         },
         "widgets": {
             "mode": "模式",
             "select_text": "选择文本",
             "inputcount": "输入数量",
             "text1_comment": "文本1注释",
-            "text2_comment": "文本2注释"
+            "text2_comment": "文本2注释",
+            "text3_comment": "文本3注释",
+            "text4_comment": "文本4注释",
+            "text5_comment": "文本5注释",
+            "text6_comment": "文本6注释",
+            "text7_comment": "文本7注释",
+            "text8_comment": "文本8注释",
+            "text9_comment": "文本9注释",
+            "text10_comment": "文本10注释",
+            "text11_comment": "文本11注释",
+            "text12_comment": "文本12注释"
         },
         "outputs": {
             "output_text": "输出文本"
@@ -201,14 +245,34 @@
         "description": "动态图像切换器：支持可变数量的图像输入。提供手动模式（按索引选择）与自动模式（仅当唯一非空输入时输出；检测到多个非空将报错）。通过滑块 inputcount 控制端口数量，端口会自动同步变化。手动模式下选择菜单只显示已连接的端口序号。",
         "inputs": {
             "image1": "图像1",
-            "image2": "图像2"
+            "image2": "图像2",
+            "image3": "图像3",
+            "image4": "图像4",
+            "image5": "图像5",
+            "image6": "图像6",
+            "image7": "图像7",
+            "image8": "图像8",
+            "image9": "图像9",
+            "image10": "图像10",
+            "image11": "图像11",
+            "image12": "图像12"
         },
         "widgets": {
             "mode": "模式",
             "select_image": "选择图像",
             "inputcount": "输入数量",
             "image1_note": "图像1备注",
-            "image2_note": "图像2备注"
+            "image2_note": "图像2备注",
+            "image3_note": "图像3备注",
+            "image4_note": "图像4备注",
+            "image5_note": "图像5备注",
+            "image6_note": "图像6备注",
+            "image7_note": "图像7备注",
+            "image8_note": "图像8备注",
+            "image9_note": "图像9备注",
+            "image10_note": "图像10备注",
+            "image11_note": "图像11备注",
+            "image12_note": "图像12备注"
         },
         "outputs": {
             "output_image": "输出图像"
@@ -250,14 +314,34 @@
         "description": "动态潜在空间切换器：支持可变数量的潜变量输入。提供手动模式（按索引选择）与自动模式（仅当唯一非空输入时输出；检测到多个非空将报错）。通过滑块 inputcount 控制端口数量，端口会自动同步变化。手动模式下选择菜单只显示已连接的端口序号。",
         "inputs": {
             "latent1": "潜在空间1",
-            "latent2": "潜在空间2"
+            "latent2": "潜在空间2",
+            "latent3": "潜在空间3",
+            "latent4": "潜在空间4",
+            "latent5": "潜在空间5",
+            "latent6": "潜在空间6",
+            "latent7": "潜在空间7",
+            "latent8": "潜在空间8",
+            "latent9": "潜在空间9",
+            "latent10": "潜在空间10",
+            "latent11": "潜在空间11",
+            "latent12": "潜在空间12"
         },
         "widgets": {
             "mode": "模式",
             "select_latent": "选择潜在空间",
             "inputcount": "输入数量",
             "latent1_note": "潜在空间1备注",
-            "latent2_note": "潜在空间2备注"
+            "latent2_note": "潜在空间2备注",
+            "latent3_note": "潜在空间3备注",
+            "latent4_note": "潜在空间4备注",
+            "latent5_note": "潜在空间5备注",
+            "latent6_note": "潜在空间6备注",
+            "latent7_note": "潜在空间7备注",
+            "latent8_note": "潜在空间8备注",
+            "latent9_note": "潜在空间9备注",
+            "latent10_note": "潜在空间10备注",
+            "latent11_note": "潜在空间11备注",
+            "latent12_note": "潜在空间12备注"
         },
         "outputs": {
             "output_latent": "输出潜在空间"
@@ -273,7 +357,6 @@
             "image_output": "图像输出"
         }
     },
-
     "PromptPresetOneChoice": {
         "title": "单选提示词预设",
         "description": "单选提示词预设：提供6个预设提示词选项，用户可选择其中一个输出。每个提示词可添加注释标注，便于管理和识别不同提示词内容。",
@@ -290,7 +373,13 @@
             "prompt4_comment": "提示词4注释",
             "prompt5_comment": "提示词5注释",
             "prompt6_comment": "提示词6注释",
-            "select_prompt": "选择提示词"
+            "select_prompt": "选择提示词",
+            "prompt1": "提示词1",
+            "prompt2": "提示词2",
+            "prompt3": "提示词3",
+            "prompt4": "提示词4",
+            "prompt5": "提示词5",
+            "prompt6": "提示词6"
         }
     },
     "SystemPromptLoader": {
@@ -403,7 +492,7 @@
     "ColorMatchToReference": {
         "title": "颜色匹配参考",
         "description": "颜色匹配参考：将输入图像的颜色调整为与参考图像匹配。分析参考图像的颜色分布，自动调整输入图像的色调、饱和度和亮度。支持匹配强度调节，适用于电影调色和颜色一致性处理。",
-        "inputs": { 
+        "inputs": {
             "reference_image": "参考图像",
             "input_image": "输入图像"
         },
@@ -446,7 +535,18 @@
             "depth_of_field": "景深",
             "composition": "构图",
             "texture": "纹理",
-            "theme": "主题"
+            "theme": "主题",
+            "template": "模板",
+            "facial_expressions": "面部表情",
+            "hair_style": "发型",
+            "hair_color": "发色",
+            "head_movements": "头部动作",
+            "hand_movements": "手部动作",
+            "leg_foot_movements": "腿部/脚部动作",
+            "photography_technique": "摄影技法",
+            "socks": "袜子",
+            "tattoo": "纹身",
+            "tattoo_location": "纹身位置"
         }
     },
     "PromptPresetMultipleChoice": {
@@ -471,11 +571,15 @@
             "prompt5_switch": "提示词5开关",
             "prompt5_comment": "提示词5注释",
             "prompt6_switch": "提示词6开关",
-            "prompt6_comment": "提示词6注释"
+            "prompt6_comment": "提示词6注释",
+            "prompt1": "提示词1",
+            "prompt2": "提示词2",
+            "prompt3": "提示词3",
+            "prompt4": "提示词4",
+            "prompt5": "提示词5",
+            "prompt6": "提示词6"
         }
     },
-
-
     "ImageEditingPresets": {
         "title": "图像编辑预设",
         "description": "图像编辑预设：提供分类管理的预设库，支持完整信息输出。适用于高级图像编辑和创意生成工作流。",
@@ -714,7 +818,10 @@
             "enable_node": "启用节点"
         },
         "outputs": {
-            "PATH": "路径"
+            "PATH": "路径",
+            "image_path": "图像路径",
+            "image": "图像",
+            "mask": "遮罩"
         }
     },
     "VideoLoader": {
@@ -737,6 +844,20 @@
         },
         "outputs": {
             "paths": "路径列表"
+        },
+        "inputs": {
+            "path_1": "路径1",
+            "path_2": "路径2",
+            "path_3": "路径3",
+            "path_4": "路径4",
+            "path_5": "路径5",
+            "path_6": "路径6",
+            "path_7": "路径7",
+            "path_8": "路径8",
+            "path_9": "路径9",
+            "path_10": "路径10",
+            "path_11": "路径11",
+            "path_12": "路径12"
         }
     },
     "PathSwitch": {
@@ -825,7 +946,8 @@
         "description": "图像分割与视觉解析，支持 4bit/8bit 量化",
         "inputs": {
             "image": "图像输入",
-            "segmentation_preset": "分割预设"
+            "segmentation_preset": "分割预设",
+            "segmentation_prompt": "分割提示词"
         },
         "widgets": {
             "model_name": "模型名称",
@@ -883,6 +1005,10 @@
         "inputs": {},
         "outputs": {
             "text_content": "提示词文本"
+        },
+        "widgets": {
+            "directory": "目录",
+            "selected_image": "所选图像"
         }
     },
     "MultiPlatformTranslate": {
@@ -1073,7 +1199,10 @@
         "description": "连接本地 LM Studio 服务器进行图像和视频分析及文本生成。支持多种预设模板（Tags、Extreme Detailed、Short Story）、输出语言控制以及自动模型发现。选择预设后系统提示词将自动失效。需要已运行 LM Studio 软件并加载具备视觉能力的模型。",
         "inputs": {
             "image": "图像",
-            "video": "视频"
+            "video": "视频",
+            "image_2": "图像2",
+            "image_3": "图像3",
+            "image_4": "图像4"
         },
         "widgets": {
             "endpoint": "服务端点",
