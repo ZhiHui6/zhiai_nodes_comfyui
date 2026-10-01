@@ -3,16 +3,52 @@ import json
 import urllib.request
 import urllib.error
 import os
-import re
+import threading
 import time
 from io import BytesIO
 import numpy as np
 from PIL import Image
-import requests
+import requests  # pyright: ignore[reportMissingModuleSource]  # requests 为 ComfyUI 运行时依赖
 
 CONFIG_DIR = os.path.dirname(__file__)
 CONFIG_FILE = os.path.join(CONFIG_DIR, "lmstudio_config.json")
 PROMPT_PRESETS_FILE = os.path.join(CONFIG_DIR, "lmstudio_prompt_presets.json")
+# 提示词预设仅一套，键名为 default
+PROMPT_PRESETS_KEY = "default"
+NO_MODELS_FOUND = "(no models found)"
+
+# 推理日志文案：运行时同时生成中英两版，由前端按界面语言选择
+LOG_TEXT = {
+    "zh": {
+        "model": "🤖 模型: {value}",
+        "batchMode": "📦 批处理模式: 启用",
+        "imageCount": "🖼️ 图片数量: {value}",
+        "processed": "✅ 成功处理: {value}",
+        "failed": "❌ 失败数量: {value}",
+        "duration": "⏱️ 耗时: {value:.2f}秒",
+        "statusDone": "✨ 状态: 推理完成",
+        "statusFailed": "⚠️ 状态: 推理失败",
+        "error": "❗ 错误信息: {value}",
+    },
+    "en": {
+        "model": "🤖 Model: {value}",
+        "batchMode": "📦 Batch mode: enabled",
+        "imageCount": "🖼️ Images: {value}",
+        "processed": "✅ Processed: {value}",
+        "failed": "❌ Failed: {value}",
+        "duration": "⏱️ Duration: {value:.2f}s",
+        "statusDone": "✨ Status: completed",
+        "statusFailed": "⚠️ Status: failed",
+        "error": "❗ Error: {value}",
+    },
+}
+
+# 日志中会出现的固定错误提示（中英两版）
+LOG_ERROR_TEXT = {
+    "subfolderNotFound": {"zh": "未找到子文件夹", "en": "No subfolders found"},
+    "imageNotFound": {"zh": "未找到图片文件", "en": "No image files found"},
+    "noImagesInBatch": {"zh": "批处理模式下未提供图片", "en": "No images provided in batch mode"},
+}
 
 def _load_config():
     if os.path.exists(CONFIG_FILE):
@@ -55,58 +91,25 @@ def _get_batch_progress():
     })
 
 def _load_prompt_presets():
-    if os.path.exists(PROMPT_PRESETS_FILE):
-        try:
-            with open(PROMPT_PRESETS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
+    """加载提示词预设（仅一套，键名 default）。"""
+    if not os.path.exists(PROMPT_PRESETS_FILE):
+        return {}
+    try:
+        with open(PROMPT_PRESETS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
 
 LMSTUDIO_PROMPT_PRESETS = _load_prompt_presets()
-LMSTUDIO_PARAM_PRESETS = {
-    "Ignore": {},
-    "Image Analysis": {
-        "max_tokens": 4096,
-        "temperature": 0.4,
-        "top_p": 0.9,
-        "top_k": 40,
-        "repetition_penalty": 1.1,
-        "presence_penalty": 0.0,
-    },
-    "Text Generation": {
-        "max_tokens": 2048,
-        "temperature": 0.7,
-        "top_p": 0.95,
-        "top_k": 50,
-        "repetition_penalty": 1.0,
-        "presence_penalty": 0.0,
-    },
-    "Creative Writing": {
-        "max_tokens": 4096,
-        "temperature": 0.9,
-        "top_p": 0.95,
-        "top_k": 60,
-        "repetition_penalty": 1.05,
-        "presence_penalty": 0.0,
-    },
-    "Qwen3.6 Thinking (General)": {
-        "max_tokens": 8192,
-        "temperature": 1.0,
-        "top_p": 0.95,
-        "top_k": 20,
-        "repetition_penalty": 1.0,
-        "presence_penalty": 0.0,
-    },
-    "Qwen3.6 Instruct": {
-        "max_tokens": 4096,
-        "temperature": 0.7,
-        "top_p": 0.80,
-        "top_k": 20,
-        "repetition_penalty": 1.0,
-        "presence_penalty": 1.5,
-    },
-}
+
+def _get_prompt_presets(config):
+    """取当前生效的预设集合；键名缺失时回退到 default（兼容旧的 new 写法）。"""
+    version = config.get("prompt_version", PROMPT_PRESETS_KEY)
+    presets = LMSTUDIO_PROMPT_PRESETS.get(version)
+    if isinstance(presets, dict) and presets:
+        return presets
+    return LMSTUDIO_PROMPT_PRESETS.get(PROMPT_PRESETS_KEY, {})
 
 def _normalise_base(endpoint: str) -> str:
     base = endpoint.rstrip("/")
@@ -114,7 +117,7 @@ def _normalise_base(endpoint: str) -> str:
         base = base[:-3]
     return base
 
-def _check_server_connection(endpoint: str) -> tuple:
+def _check_server_connection(endpoint: str) -> tuple[bool, str | None]:
     """检查LM Studio服务器连接状态，返回 (是否成功, 错误信息)"""
     base = _normalise_base(endpoint)
     timeout = _get_timeout("fetch_models", 5)
@@ -149,19 +152,23 @@ def _check_server_connection(endpoint: str) -> tuple:
     
     return False, f"无法连接到LM Studio服务器 ({endpoint})。请确认服务器已启动并启用了API服务"
 
-def _check_model_available(endpoint: str, model: str) -> tuple:
+def _check_model_available(endpoint: str, model: str) -> tuple[bool, str | None]:
     """检查指定模型是否可用，返回 (是否成功, 错误信息)"""
-    if not model or model == "(no models found)" or model == "未找到模型":
+    if not model or model == NO_MODELS_FOUND or model == "未找到模型":
         return False, "未选择有效的模型。请先在节点设置中刷新模型列表并选择一个模型"
-    
-    models = _fetch_models(endpoint)
+
+    models = _maybe_refresh(endpoint, blocking=True)
+
+    if not is_discovery_ok():
+        return True, None
+
     if model not in models:
         available_models = ", ".join(models[:5]) if models else "无"
         return False, f"模型 '{model}' 不在可用模型列表中。\n当前可用模型: {available_models}{'...' if len(models) > 5 else ''}"
-    
+
     return True, None
 
-def _fetch_models(endpoint: str) -> list:
+def _fetch_models_with_status(endpoint: str) -> tuple[list[str], bool]:
     base = _normalise_base(endpoint)
     timeout = _get_timeout("fetch_models", 5)
 
@@ -174,7 +181,7 @@ def _fetch_models(endpoint: str) -> list:
             if "data" in data:
                 ids = [m.get("id", "") for m in data.get("data", []) if m.get("id")]
                 if ids:
-                    return ids
+                    return ids, True
     except urllib.error.URLError as e:
         print(f"[LMStudio] OpenAI endpoint /v1/models connection failed: {e.reason}")
     except Exception as e:
@@ -191,34 +198,103 @@ def _fetch_models(endpoint: str) -> list:
                     m.get("key", "") for m in data.get("models", []) if m.get("key")
                 ]
                 if keys:
-                    return keys
+                    return keys, True
     except urllib.error.URLError as e:
         print(f"[LMStudio] Native API /api/v1/models connection failed: {e.reason}")
     except Exception as e:
         print(f"[LMStudio] Native API /api/v1/models error: {e}")
 
     print(f"[LMStudio] Could not fetch models from {base}. Make sure LM Studio server is running.")
-    return ["(no models found)"]
+    return [NO_MODELS_FOUND], False
+
 
 _cached_endpoint: str = ""
-_cached_models: list = ["(no models found)"]
-_last_refresh_time: float = 0
+_cached_models: list[str] = [NO_MODELS_FOUND]
+_last_refresh_time: float = 0.0
+_last_refresh_ok: bool = False
 _refresh_interval: float = 5.0
+_failure_backoff: float = 30.0
+_refresh_lock = threading.Lock()
+_refresh_thread = None
 
-def _maybe_refresh(endpoint: str, force: bool = False) -> list:
-    global _cached_endpoint, _cached_models, _last_refresh_time
-    current_time = time.time()
-    should_refresh = (
-        force
-        or endpoint != _cached_endpoint
-        or _cached_models == ["(no models found)"]
-        or (current_time - _last_refresh_time) > _refresh_interval
-    )
-    if should_refresh:
+
+def is_discovery_ok() -> bool:
+    """上次模型发现是否成功"""
+    return _last_refresh_ok
+
+
+def refresh_models_now(endpoint: str) -> list[str]:
+    """同步查询 LM Studio 并更新模型缓存（阻塞）。不要在事件循环线程中调用。"""
+    global _cached_endpoint, _cached_models, _last_refresh_time, _last_refresh_ok
+    models, ok = _fetch_models_with_status(endpoint)
+    with _refresh_lock:
         _cached_endpoint = endpoint
-        _cached_models = _fetch_models(endpoint)
-        _last_refresh_time = current_time
-    return _cached_models
+        _cached_models = list(models)
+        _last_refresh_ok = ok
+        _last_refresh_time = time.time()
+    return list(models)
+
+
+def _refresh_models_in_background(endpoint: str) -> None:
+    global _refresh_thread
+    with _refresh_lock:
+        if _refresh_thread is not None and _refresh_thread.is_alive():
+            return
+        _refresh_thread = threading.Thread(
+            target=refresh_models_now,
+            args=(endpoint,),
+            name="lmstudio-model-refresh",
+            daemon=True,
+        )
+    _refresh_thread.start()
+
+
+def _maybe_refresh(endpoint: str, force: bool = False, blocking: bool = False) -> list[str]:
+    """返回缓存的模型列表；需要刷新时在后台线程（或 blocking=True 时当前线程）执行
+
+    发现成功后按 _refresh_interval 刷新，发现失败后按 _failure_backoff 退避，
+    因此失败的发现不会在每次调用时都重试。
+    """
+    global _cached_endpoint, _last_refresh_time
+    with _refresh_lock:
+        endpoint_changed = endpoint != _cached_endpoint
+        if endpoint_changed:
+            _cached_endpoint = endpoint
+        now = time.time()
+        interval = _refresh_interval if _last_refresh_ok else _failure_backoff
+        due = (
+            force
+            or endpoint_changed
+            or _last_refresh_time == 0.0
+            or (now - _last_refresh_time) > interval
+        )
+        if due:
+            _last_refresh_time = now
+        models = list(_cached_models)
+
+    if due:
+        if blocking:
+            models = refresh_models_now(endpoint)
+        else:
+            _refresh_models_in_background(endpoint)
+    return models
+
+def _image_inputs(cls):
+    inputs = {
+        "image": (
+            "IMAGE",
+            {
+                "tooltip": "Optional image (B,H,W,C float32). Requires a vision-capable model. "
+                           "One socket is enough: a spare one appears after each image you connect.",
+            },
+        )
+    }
+    for index in range(2, cls.MAX_LINKED_IMAGES + 1):
+        inputs[f"image_{index}"] = (
+            "IMAGE",
+            {"tooltip": f"Image {index} of the multi-image prompt (up to {cls.MAX_LINKED_IMAGES})."},
+        )
+    return inputs
 
 class LMStudioNode:
     CATEGORY = "Zhi.AI/LM Studio"
@@ -226,29 +302,47 @@ class LMStudioNode:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("result",)
     OUTPUT_NODE = True
+    MAX_LINKED_IMAGES = 12
     DESCRIPTION = "Connect to local LM Studio server for image analysis and text generation. Supports multiple preset templates, output language control, and auto model discovery. Requires LM Studio software running with a vision-capable model loaded."
+
+    @classmethod
+    def _collect_images(cls, image, extra_slots):
+        images = [] if image is None else [image]
+        for index in range(2, cls.MAX_LINKED_IMAGES + 1):
+            slot = extra_slots.get(f"image_{index}")
+            if slot is not None:
+                images.append(slot)
+        return images
 
     @classmethod
     def INPUT_TYPES(cls):
         config = _load_config()
         endpoint = config.get("endpoint", "http://localhost:1234")
         models = list(_maybe_refresh(endpoint))
-        prompt_version = config.get("prompt_version", "new")
-        presets = LMSTUDIO_PROMPT_PRESETS.get(prompt_version, LMSTUDIO_PROMPT_PRESETS.get("new", {}))
-        preset_keys = list(presets.keys())
+        presets = _get_prompt_presets(config)
+        # 下拉只列出预设文件里的实际预设，不再提供「不使用预设」选项
+        # （旧工作流若仍保存着 "Ignore"，run() 中的 Ignore 分支保持原语义）
+        preset_keys = [key for key in presets.keys() if key != "Ignore"] or ["Ignore"]
         return {
             "required": {
+                "use_preset": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "Use the preset prompt group. Enabled: Preset Prompt / Length / Format / Output Language apply and the User & System Prompt fields are ignored. Disabled: the preset group is ignored and the User & System Prompt fields are used.",
+                    },
+                ),
                 "preset_prompt": (
                     preset_keys,
                     {
-                        "default": "Ignore",
+                        "default": preset_keys[0],
                         "tooltip": "Select preset prompt template including tag generation, detailed description, creative analysis and more",
                     },
                 ),
                 "output_language": (
-                    ["Ignore", "Chinese", "English", "Chinese&English"],
+                    ["Chinese", "English", "Chinese&English"],
                     {
-                        "default": "Ignore",
+                        "default": "Chinese",
                         "tooltip": "Set output language: Chinese, English, or bilingual",
                     },
                 ),
@@ -267,19 +361,33 @@ class LMStudioNode:
                         "multiline": True,
                     },
                 ),
+                "prompt_length": (
+                    ["Standard", "Short", "Medium", "Long"],
+                    {
+                        "default": "Standard",
+                        "tooltip": "Output length preset. Standard keeps the preset's own length; Short/Medium/Long append a length constraint to the prompt (shown as 标准/短/中/长 in the panel).",
+                    },
+                ),
+                "prompt_format": (
+                    ["Structured JSON", "Tag", "Natural"],
+                    {
+                        "default": "Natural",
+                        "tooltip": "Output format preset. Natural appends nothing (model default), Tag outputs comma-separated tags, Structured JSON outputs a JSON object (shown as 结构化Json/Tag标签/自然语言 in the panel).",
+                    },
+                ),
                 "endpoint": (
                     "STRING",
                     {
                         "default": "http://localhost:1234",
                         "multiline": False,
-                        "tooltip": "LM Studio server base URL. Change this then queue once to refresh the model list.",
+                        "tooltip": "LM Studio server base URL. The model list is refreshed in the background.",
                     },
                 ),
                 "model": (
                     models,
                     {
                         "default": models[0],
-                        "tooltip": "Available models. Queue once after changing the endpoint to refresh.",
+                        "tooltip": "Available models, refreshed in the background. Click Refresh Models on the node to update immediately.",
                     },
                 ),
                 "size_limitation": (
@@ -398,37 +506,12 @@ class LMStudioNode:
                     },
                 ),
             },
-            "optional": {
-                "image": (
-                    "IMAGE",
-                    {
-                        "tooltip": "Optional image (B,H,W,C float32). Requires a vision-capable model.",
-                    },
-                ),
-                "image_2": (
-                    "IMAGE",
-                    {
-                        "tooltip": "Optional second image for multi-image inference.",
-                    },
-                ),
-                "image_3": (
-                    "IMAGE",
-                    {
-                        "tooltip": "Optional third image for multi-image inference.",
-                    },
-                ),
-                "image_4": (
-                    "IMAGE",
-                    {
-                        "tooltip": "Optional fourth image for multi-image inference.",
-                    },
-                ),
-            },
+            "optional": _image_inputs(cls),
         }
 
     @classmethod
     def IS_CHANGED(cls, endpoint: str, **kwargs):
-        _maybe_refresh(endpoint, force=True)
+        _maybe_refresh(endpoint)
         return str(time.time())
 
     @staticmethod
@@ -443,6 +526,29 @@ class LMStudioNode:
                 + " Please respond in both Chinese and English, first describe in Chinese, then describe in English."
             )
         return prompt
+
+    @staticmethod
+    def _apply_prompt_length(prompt: str, prompt_length: str) -> str:
+        """篇幅约束：Standard 不追加（沿用预设自身长度），Short/Medium/Long 在末尾追加长度要求。"""
+        if not isinstance(prompt, str) or not prompt.strip():
+            return prompt
+        guidance = {
+            "Short": " Keep the answer to one or two sentences without expanding.",
+            "Medium": " Answer in a single concise paragraph of moderate length.",
+            "Long": " Provide a thorough multi-paragraph answer covering as much visible detail as possible.",
+        }.get(prompt_length or "", "")
+        return prompt + guidance if guidance else prompt
+
+    @staticmethod
+    def _apply_prompt_format(prompt: str, prompt_format: str) -> str:
+        """格式约束：Natural 不追加（模型默认即自然语言），Tag/Structured JSON 在末尾追加输出格式要求。"""
+        if not isinstance(prompt, str) or not prompt.strip():
+            return prompt
+        guidance = {
+            "Tag": " Output only comma-separated tags, without sentences or explanations.",
+            "Structured JSON": " Output only a valid JSON object, without any explanation or code fence.",
+        }.get(prompt_format or "", "")
+        return prompt + guidance if guidance else prompt
 
     @staticmethod
     def _remove_think_content(text: str) -> str:
@@ -466,7 +572,7 @@ class LMStudioNode:
                 scale = target / float(long_edge)
                 new_w = max(1, int(round(w * scale)))
                 new_h = max(1, int(round(h * scale)))
-                pil_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
+                pil_img = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
         buf = BytesIO()
         pil_img.save(buf, format="PNG")
@@ -504,7 +610,7 @@ class LMStudioNode:
         new_h = max(1, int(round(h * scale)))
 
         pil_img = Image.fromarray((image_array * 255).astype(np.uint8))
-        pil_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
+        pil_img = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
         return np.array(pil_img).astype(np.float32) / 255.0
 
     @staticmethod
@@ -735,30 +841,41 @@ class LMStudioNode:
         if not show_log:
             return ""
 
-        log_lines = []
-        log_lines.append(f"🤖 模型: {model}")
-        
-        if batch_mode:
-            log_lines.append(f"📦 批处理模式: 启用")
-            if image_count > 0:
-                log_lines.append(f"🖼️ 图片数量: {image_count}")
-            if processed_count > 0 or error_count > 0:
-                log_lines.append(f"✅ 成功处理: {processed_count}")
-                log_lines.append(f"❌ 失败数量: {error_count}")
-        elif image_count > 0:
-            log_lines.append(f"🖼️ 图片数量: {image_count}")
-        
-        if duration > 0:
-            log_lines.append(f"⏱️ 耗时: {duration:.2f}秒")
-        
-        if success:
-            log_lines.append(f"✨ 状态: 推理完成")
-        else:
-            log_lines.append(f"⚠️ 状态: 推理失败")
-            if error_msg:
-                log_lines.append(f"❗ 错误信息: {error_msg}")
-        
-        return "\n".join(log_lines)
+        # 一次生成中英两版，前端按界面语言显示（切换语言时也能即时重渲染）
+        log_texts = {}
+        for lang in ("zh", "en"):
+            labels = LOG_TEXT[lang]
+            log_lines = [labels["model"].format(value=model)]
+
+            if batch_mode:
+                log_lines.append(labels["batchMode"])
+                if image_count > 0:
+                    log_lines.append(labels["imageCount"].format(value=image_count))
+                if processed_count > 0 or error_count > 0:
+                    log_lines.append(labels["processed"].format(value=processed_count))
+                    log_lines.append(labels["failed"].format(value=error_count))
+            elif image_count > 0:
+                log_lines.append(labels["imageCount"].format(value=image_count))
+
+            if duration > 0:
+                log_lines.append(labels["duration"].format(value=duration))
+
+            if success:
+                log_lines.append(labels["statusDone"])
+            else:
+                log_lines.append(labels["statusFailed"])
+                if error_msg:
+                    # error_msg 允许为 {"zh": ..., "en": ...}；普通字符串则两版一致
+                    if isinstance(error_msg, dict):
+                        error_value = error_msg.get(lang) or error_msg.get("zh") or error_msg.get("en") or ""
+                    else:
+                        error_value = str(error_msg)
+                    if error_value:
+                        log_lines.append(labels["error"].format(value=error_value))
+
+            log_texts[lang] = "\n".join(log_lines)
+
+        return log_texts
 
     def _prepare_return(
         self,
@@ -766,19 +883,36 @@ class LMStudioNode:
         endpoint: str,
         unload_model: bool,
         remove_think_tags: bool = False,
-        log_info: str = "",
+        log_info=None,
     ):
         if remove_think_tags:
             result = self._remove_think_content(result)
         result = result.strip() if isinstance(result, str) else result
         if unload_model:
             self._unload_model(endpoint)
-        return {"ui": {"log_info": [log_info]}, "result": (result,)}
+
+        # log_info: {"zh": ..., "en": ...}（同时下发两版）；非字典时两版使用同一文本
+        if isinstance(log_info, dict):
+            texts = {lang: str(log_info.get(lang, "") or "") for lang in ("zh", "en")}
+        else:
+            text = str(log_info or "")
+            texts = {"zh": text, "en": text}
+
+        return {
+            "ui": {
+                "log_info": [texts["zh"]],
+                "log_info_i18n": [texts],
+            },
+            "result": (result,),
+        }
 
     def run(
         self,
         preset_prompt: str,
+        use_preset: bool,
         output_language: str,
+        prompt_length: str,
+        prompt_format: str,
         user_prompt: str,
         system_prompt: str,
         endpoint: str,
@@ -797,9 +931,7 @@ class LMStudioNode:
         skip_exists: bool = False,
         remove_think_tags: bool = False,
         image=None,
-        image_2=None,
-        image_3=None,
-        image_4=None,
+        **image_slots,
     ):
 
         server_ok, server_error = _check_server_connection(endpoint)
@@ -820,25 +952,26 @@ class LMStudioNode:
             seed = random.randint(1, 0xFFFFFFFFFFFFFFFF)
 
         config = _load_config()
-        prompt_version = config.get("prompt_version", "new")
-        presets = LMSTUDIO_PROMPT_PRESETS.get(prompt_version, LMSTUDIO_PROMPT_PRESETS.get("new", {}))
+        presets = _get_prompt_presets(config)
         preset_text = presets.get(preset_prompt, "")
 
-        if preset_prompt == "Ignore":
-            full_user_text = user_prompt.strip() if user_prompt.strip() else ""
-        else:
+        # 「使用预设」开关：关闭时整组预设（预设提示词 / 篇幅 / 格式 / 输出语言）都不参与请求，
+        # 改用用户提示词与系统提示词；旧工作流用 preset_prompt == "Ignore" 表达同一含义，保持兼容
+        preset_active = bool(use_preset) and preset_prompt != "Ignore"
+
+        if preset_active:
             full_user_text = user_prompt.strip() if user_prompt.strip() else preset_text
+            # 预设组的附加指令仅在启用预设时生效（与面板的禁用状态一致）
+            full_user_text = self._apply_output_language(full_user_text, output_language)
+            full_user_text = self._apply_prompt_length(full_user_text, prompt_length)
+            full_user_text = self._apply_prompt_format(full_user_text, prompt_format)
+        else:
+            full_user_text = user_prompt.strip() if user_prompt.strip() else ""
 
-        full_user_text = self._apply_output_language(full_user_text, output_language)
-
-        effective_system_prompt = system_prompt if preset_prompt == "Ignore" else ""
+        effective_system_prompt = "" if preset_active else system_prompt
 
         if not batch_mode:
-            all_images = []
-            for img in [image, image_2, image_3, image_4]:
-                if img is not None:
-                    all_images.append(img)
-            
+            all_images = self._collect_images(image, image_slots)
             image_count = len(all_images)
 
             if image_count == 0:
@@ -896,6 +1029,7 @@ class LMStudioNode:
                         top_p=top_p,
                         top_k=top_k,
                         repetition_penalty=repetition_penalty,
+                        presence_penalty=presence_penalty,
                         seed=seed,
                         size_limitation=size_limitation,
                         batch_mode=batch_mode,
@@ -978,6 +1112,7 @@ class LMStudioNode:
                     top_p=top_p,
                     top_k=top_k,
                     repetition_penalty=repetition_penalty,
+                    presence_penalty=presence_penalty,
                     seed=seed,
                     size_limitation=size_limitation,
                     batch_mode=batch_mode,
@@ -1009,12 +1144,13 @@ class LMStudioNode:
                                 top_p=top_p,
                                 top_k=top_k,
                                 repetition_penalty=repetition_penalty,
+                                presence_penalty=presence_penalty,
                                 seed=seed,
                                 size_limitation=size_limitation,
                                 batch_mode=batch_mode,
                                 image_count=0,
                                 success=False,
-                                error_msg="未找到子文件夹",
+                                error_msg=LOG_ERROR_TEXT["subfolderNotFound"],
                             )
                             return self._prepare_return(
                                 "", endpoint, unload_model, remove_think_tags, log_info
@@ -1153,6 +1289,7 @@ class LMStudioNode:
                             top_p=top_p,
                             top_k=top_k,
                             repetition_penalty=repetition_penalty,
+                            presence_penalty=presence_penalty,
                             seed=seed,
                             size_limitation=size_limitation,
                             batch_mode=batch_mode,
@@ -1181,12 +1318,13 @@ class LMStudioNode:
                                 top_p=top_p,
                                 top_k=top_k,
                                 repetition_penalty=repetition_penalty,
+                                presence_penalty=presence_penalty,
                                 seed=seed,
                                 size_limitation=size_limitation,
                                 batch_mode=batch_mode,
                                 image_count=0,
                                 success=False,
-                                error_msg="未找到图片文件",
+                                error_msg=LOG_ERROR_TEXT["imageNotFound"],
                             )
                             return self._prepare_return(
                                 "", endpoint, unload_model, remove_think_tags, log_info
@@ -1273,6 +1411,7 @@ class LMStudioNode:
                             top_p=top_p,
                             top_k=top_k,
                             repetition_penalty=repetition_penalty,
+                            presence_penalty=presence_penalty,
                             seed=seed,
                             size_limitation=size_limitation,
                             batch_mode=batch_mode,
@@ -1298,6 +1437,7 @@ class LMStudioNode:
                         top_p=top_p,
                         top_k=top_k,
                         repetition_penalty=repetition_penalty,
+                        presence_penalty=presence_penalty,
                         seed=seed,
                         size_limitation=size_limitation,
                         batch_mode=batch_mode,
@@ -1325,11 +1465,12 @@ class LMStudioNode:
                         top_p=top_p,
                         top_k=top_k,
                         repetition_penalty=repetition_penalty,
+                        presence_penalty=presence_penalty,
                         seed=seed,
                         size_limitation=size_limitation,
                         batch_mode=batch_mode,
                         success=False,
-                        error_msg="批处理模式下未提供图片",
+                        error_msg=LOG_ERROR_TEXT["noImagesInBatch"],
                     )
                     return self._prepare_return(
                         "", endpoint, unload_model, remove_think_tags, log_info
@@ -1402,6 +1543,7 @@ class LMStudioNode:
                     top_p=top_p,
                     top_k=top_k,
                     repetition_penalty=repetition_penalty,
+                    presence_penalty=presence_penalty,
                     seed=seed,
                     size_limitation=size_limitation,
                     batch_mode=batch_mode,

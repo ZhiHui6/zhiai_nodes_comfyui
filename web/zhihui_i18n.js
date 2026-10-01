@@ -1,9 +1,9 @@
 import { app } from "/scripts/app.js";
 
 /**
- * 潪AI节点包内置汉化运行时（中/英自适应）
+ * 智爱节点包内置汉化运行时（中/英自适应）
  *
- * 替代原先依赖 ComfyUI-DD-Translation 的汉化方式：词典随插件分发在 web/locale/zh/ 下，
+ * 替代原先依赖 ComfyUI-DD-Translation 的汉化方式：词典随插件分发在插件根目录 locale/zh/ 下，
  * 运行时按当前 ComfyUI 语言决定显示：
  *   - 节点标题、节点描述
  *   - 控件（widget）标签、输入/输出端口名
@@ -13,11 +13,13 @@ import { app } from "/scripts/app.js";
  * 语言变化时立即重刷已存在节点，无需刷新页面。
  */
 
-const NODES_URL = new URL("./locale/zh/nodes.json", import.meta.url);
-const VALUES_URL = new URL("./locale/zh/values.json", import.meta.url);
+const NODES_URL = "/zhihui_nodes/locale/zh/nodes.json";
+const VALUES_URL = "/zhihui_nodes/locale/zh/values.json";
 
 const LOCALE_KEYS = ["Comfy.Locale", "Comfy.Language"];
 const STORAGE_KEYS = ["Comfy.Locale", "Comfy.Language", "i18nextLng"];
+/** 控制节点是否为 Vue 渲染的设置项 */
+const VUE_NODES_KEYS = ["Comfy.VueNodes.Enabled"];
 const COMBO_TYPES = new Set(["combo", "COMBO"]);
 const CJK = /[\u4e00-\u9fff]/;
 
@@ -81,6 +83,29 @@ export function getLocale() {
 	return normalizeLocale(document?.documentElement?.lang) ?? "en";
 }
 
+/**
+ * 节点是否由 Vue 渲染。
+ *
+ * LiteGraph 画布渲染（该设置为 false 或读取不到）下，ComboWidget.onClick 只要发现
+ * options.getOptionLabel，就会改用「空 items 数组 + 逐项 addItem」的方式构建下拉菜单；
+ * 而第三方扩展（如 ComfyUI-Easy-Use 对 LiteGraph.ContextMenu 的包装）在 items 为空时
+ * 会把 options.callback 置空后原样放行，导致随后手动 addItem 出来的菜单项点击后
+ * 无法回写数值——表现为「下拉能弹出、选择后不生效」。因此仅 Vue 渲染时注入该映射。
+ */
+function isVueNodeRendering() {
+	try {
+		const settings = app?.ui?.settings;
+		for (const key of VUE_NODES_KEYS) {
+			const value = settings?.getSettingValue?.(key);
+			if (value === true || value === "true") return true;
+			if (value === false || value === "false") return false;
+		}
+	} catch (_) {
+		/* 设置项不可用时按画布渲染处理 */
+	}
+	return false;
+}
+
 /* ------------------------------- 词典访问 ------------------------------- */
 
 async function fetchJson(url, label) {
@@ -89,7 +114,7 @@ async function fetchJson(url, label) {
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return await response.json();
 	} catch (error) {
-		console.warn(`[zhihui_nodes] ${label}词典加载失败，汉化降级为英文：${url.href}`, error);
+		console.warn(`[zhihui_nodes] ${label}词典加载失败，汉化降级为英文：${url}`, error);
 		return {};
 	}
 }
@@ -168,7 +193,8 @@ function captureOriginal(candidate, cached) {
 
 /**
  * 写入显示标签。
- * 仅当当前值仍是「原始状态」时写入：为空、等于自身 name、或等于本模块上次写入的值；
+ * 仅当当前值仍是「原始状态」时写入：为空、等于自身 name、等于本模块上次写入的值，
+ * 或等于词典为该条目提供的文本（标记因克隆而丢失时据此认回归属）；
  * 其它模块或用户自定义的标签不被侵占，切回英文时也能准确还原。
  */
 function applyLabel(item, zhTextValue, extra) {
@@ -176,12 +202,17 @@ function applyLabel(item, zhTextValue, extra) {
 	const name = item.name;
 	const managed = item._zhihuiLabel;
 	const current = item.label;
+	/* 词典文本也算「本模块写过的值」：前端重建/克隆 slot 与 widget 时只搬公共字段
+	   （litegraph 的 shallowCloneCommonProps 不含 _zhihuiLabel），标记一丢，
+	   下面的让权判定就会把中文标签误判成他人自定义，该端口从此冻结在切换时的语言上 */
 	if (typeof managed === "string") {
 		if (current !== managed) {
-			delete item._zhihuiLabel;
-			return false;
+			if (current !== zhTextValue) {
+				delete item._zhihuiLabel;
+				return false;
+			}
 		}
-	} else if (typeof current === "string" && current && current !== name) {
+	} else if (typeof current === "string" && current && current !== name && current !== zhTextValue) {
 		return false;
 	}
 	const next = getLocale() === "zh" && zhTextValue ? zhTextValue : name;
@@ -199,6 +230,44 @@ function applyLabel(item, zhTextValue, extra) {
 	return changed;
 }
 
+/**
+ * 端口标签改为「读取时求值」：把 label 定义成实例上的访问器，画布每次渲染都按当前语言取值，
+ * 不再依赖 Comfy.Locale 变更事件与重绘时机 —— 快照式写入只要错过那一次事件，
+ * 标签就会一直停在切换时的语言上（输入/输出端口正是这种情况）。
+ *
+ * 仍尊重他方改写：set 收到的值若既不是自身 name、也不是词典文本，视为用户或其它模块自定义，
+ * get 直接返回它。序列化（litegraph 的 asSerialisable 会读 label）因此可能把当前语言的文本
+ * 写进工作流，但载入时那次赋值会被同一条判定认回，不会把语言固化下来。
+ *
+ * resolveZh 收 name 返回词典文本：端口改名或槽位被重建后仍按最新 name 查词典。
+ */
+function applyLiveLabel(item, resolveZh) {
+	if (!item || typeof item.name !== "string") return false;
+	if (item._zhihuiLiveLabel) return false;
+	const zh = resolveZh(item.name);
+	const current = item.label;
+	if (typeof current === "string" && current && current !== item.name && current !== zh) return false;
+	try {
+		Object.defineProperty(item, "label", {
+			configurable: true,
+			enumerable: true,
+			get() {
+				const text = resolveZh(this.name);
+				const value = this._zhihuiLabelOverride;
+				if (typeof value === "string" && value && value !== this.name && value !== text) return value;
+				return getLocale() === "zh" && text ? text : this.name;
+			},
+			set(value) {
+				this._zhihuiLabelOverride = value;
+			},
+		});
+	} catch (_) {
+		/* 槽位对象被冻结/封装时 defineProperty 会抛：退回快照式写入 */
+		return applyLabel(item, zh);
+	}
+	return true;
+}
+
 function applyWidgetLabel(widget, zhTextValue) {
 	return applyLabel(widget, zhTextValue, (next) => {
 		if (!widget.options || widget.options.label === next) return false;
@@ -214,16 +283,30 @@ function isComboWidget(widget) {
 /**
  * 下拉选项仅改显示文本：getOptionLabel 每次调用实时读取当前语言；
  * 不改 widget.value 与 widget.options.values，提交值及后端逻辑不受影响。
+ *
+ * 仅在 Vue 渲染节点时注入；画布渲染下必须移除该注入，原因见 isVueNodeRendering()。
  */
 function applyOptionLabel(className, widget) {
 	const options = widget.options;
-	if (!options || options._zhihuiOptionLabel) return false;
+	if (!options) return false;
+	if (!isVueNodeRendering()) return clearOptionLabel(options);
+	if (options._zhihuiOptionLabel) return false;
 	if (typeof options.getOptionLabel === "function") return false;
-	options.getOptionLabel = (value) => {
+	const mapLabel = (value) => {
 		if (value === null || value === undefined || getLocale() !== "zh") return value;
 		return zhOption(className, widget.name, value) ?? value;
 	};
-	options._zhihuiOptionLabel = true;
+	options.getOptionLabel = mapLabel;
+	options._zhihuiOptionLabel = mapLabel;
+	return true;
+}
+
+/** 解除本模块注入的 getOptionLabel，恢复 LiteGraph 原生下拉构建路径 */
+function clearOptionLabel(options) {
+	const injected = options._zhihuiOptionLabel;
+	if (!injected) return false;
+	if (options.getOptionLabel === injected) delete options.getOptionLabel;
+	delete options._zhihuiOptionLabel;
 	return true;
 }
 
@@ -260,15 +343,17 @@ function applyNodeTitle(node, className) {
 	return true;
 }
 
-function applyNode(node) {
+export function applyNode(node) {
 	const className = nodeClassName(node);
 	if (!className || !nodeDict(className)) return false;
 	let changed = applyNodeTitle(node, className);
+	/* 端口标签用实时访问器而不是快照：语言一变，画布下一帧读到的就是新文本，
+	   不再依赖这次遍历恰好赶上变更事件 */
 	for (const input of node.inputs ?? []) {
-		changed = applyLabel(input, zhLabel(className, input.name)) || changed;
+		changed = applyLiveLabel(input, (name) => zhLabel(className, name)) || changed;
 	}
 	for (const output of node.outputs ?? []) {
-		changed = applyLabel(output, zhOutput(className, output.name)) || changed;
+		changed = applyLiveLabel(output, (name) => zhOutput(className, name)) || changed;
 	}
 	for (const widget of node.widgets ?? []) {
 		if (typeof widget?.name !== "string") continue;

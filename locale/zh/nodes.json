@@ -1202,7 +1202,15 @@
             "video": "视频",
             "image_2": "图像2",
             "image_3": "图像3",
-            "image_4": "图像4"
+            "image_4": "图像4",
+            "image_5": "图像5",
+            "image_6": "图像6",
+            "image_7": "图像7",
+            "image_8": "图像8",
+            "image_9": "图像9",
+            "image_10": "图像10",
+            "image_11": "图像11",
+            "image_12": "图像12"
         },
         "widgets": {
             "endpoint": "服务端点",
@@ -1233,5 +1241,23 @@
     "GroupSwitchManager": {
         "title": "组开关管理器",
         "description": "组开关管理器：提供可视化的组开关控制和联动配置功能，可管理工作流中各组的启用/禁用状态，并配置组间的联动规则。"
+    },
+    "TextEncoderRelease": {
+        "title": "释放文本编码器（采样前）",
+        "description": "文本编码器释放节点：在采样前把所连的 CLIP（文本编码器）从显存中卸载，提前腾出显存，适合编码器体积大、采样需要完整显存的工作流。条件端口是「执行依赖」——接上编码结果可保证文本编码完成后才卸载；模型端口原样透传，可直接串在采样节点之前。",
+        "widgets": {
+            "enabled": "启用",
+            "verbose": "详细日志"
+        },
+        "inputs": {
+            "model": "模型",
+            "clip": "CLIP",
+            "conditioning": "条件",
+            "conditioning_2": "条件2",
+            "conditioning_3": "条件3"
+        },
+        "outputs": {
+            "model": "模型"
+        }
     }
 }

@@ -6,13 +6,15 @@
     "unload_model": 30
   },
   "preset": "Ignore",
-  "prompt_version": "new",
-  "show_log_panel": true,
+  "prompt_version": "default",
+  "show_log_panel": false,
   "folder_read_mode": "recursive",
   "batch_progress": {
     "current_folder": "",
     "processed_folders": [],
     "total_folders": 0,
     "current_folder_index": 0
-  }
+  },
+  "last_batch_folder": "G:\\桌面文件\\灵感参考\\妲己",
+  "endpoint": "http://localhost:1234"
 }

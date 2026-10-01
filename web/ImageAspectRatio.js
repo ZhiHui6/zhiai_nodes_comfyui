@@ -1,4 +1,5 @@
 import { app } from "../../../scripts/app.js";
+import { drawNodeHelpButton } from "./node_title_icons.js";
 
 const i18n = {
     zh: {
@@ -107,19 +108,6 @@ function createHelpPopup(description, onClose) {
     `;
 
     docElement.innerHTML = `<div style="overflow-y:auto;max-height:540px;padding-right:8px;scrollbar-width:thin;scrollbar-color:rgba(96,165,250,0.3) transparent;">${description}</div>`;
-
-    const accent = document.createElement('div');
-    accent.style.cssText = `
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, #3b82f6, #06b6d4, #3b82f6);
-        border-radius: 16px 16px 0 0;
-        opacity: 0.8;
-    `;
-    docElement.insertBefore(accent, docElement.firstChild);
 
     document.body.appendChild(docElement);
     return docElement;
@@ -647,26 +635,13 @@ app.registerExtension({
                     helpElement.style.top = `${transform.f + bcr.y}px`;
                 }
 
+                // 展开中或鼠标悬停时高亮
+                const helpActive = !!(this._imageAspectRatioHelp || this._imageAspectRatioHelpHovered);
+
                 ctx.save();
                 ctx.translate(x, y);
                 ctx.scale(iconSize / 32, iconSize / 32);
-                
-                ctx.beginPath();
-                ctx.arc(16, 16, 14, 0, Math.PI * 2);
-                ctx.fillStyle = this._imageAspectRatioHelp ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.15)';
-                ctx.fill();
-                
-                ctx.beginPath();
-                ctx.arc(16, 16, 14, 0, Math.PI * 2);
-                ctx.strokeStyle = this._imageAspectRatioHelp ? '#60a5fa' : 'rgba(96, 165, 250, 0.6)';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                
-                ctx.font = 'bold 24px system-ui';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = this._imageAspectRatioHelp ? '#93c5fd' : '#60a5fa';
-                ctx.fillText('?', 16, 19);
+                drawNodeHelpButton(ctx, helpActive);
                 
                 ctx.restore();
                 return r;
@@ -685,6 +660,32 @@ app.registerExtension({
                 ) {
                     this._imageAspectRatioHelp = !this._imageAspectRatioHelp;
                     return true;
+                }
+                return r;
+            };
+
+            // 帮助按钮悬停高亮
+            const mouseMove = nodeType.prototype.onMouseMove;
+            nodeType.prototype.onMouseMove = function (e, localPos, canvas) {
+                const r = mouseMove ? mouseMove.apply(this, arguments) : undefined;
+                const iconX = this.size[0] - iconSize - iconMargin;
+                const iconY = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
+                const hovered = !!localPos
+                    && localPos[0] > iconX && localPos[0] < iconX + iconSize
+                    && localPos[1] > iconY && localPos[1] < iconY + iconSize;
+                if (hovered !== this._imageAspectRatioHelpHovered) {
+                    this._imageAspectRatioHelpHovered = hovered;
+                    this.setDirtyCanvas(true, true);
+                }
+                return r;
+            };
+
+            const mouseLeave = nodeType.prototype.onMouseLeave;
+            nodeType.prototype.onMouseLeave = function () {
+                const r = mouseLeave ? mouseLeave.apply(this, arguments) : undefined;
+                if (this._imageAspectRatioHelpHovered) {
+                    this._imageAspectRatioHelpHovered = false;
+                    this.setDirtyCanvas(true, true);
                 }
                 return r;
             };

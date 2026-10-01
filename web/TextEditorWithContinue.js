@@ -1,4 +1,5 @@
 import { app } from "../../../scripts/app.js";
+import { drawNodeHelpButton } from "./node_title_icons.js";
 import { ComfyWidgets } from "../../../scripts/widgets.js";
 import { api } from "../../../scripts/api.js";
 
@@ -229,7 +230,9 @@ app.registerExtension({
                 }
             }
 
-            const helpIconSize = 22;
+            // 与其它节点（含 LM Studio 节点）保持一致：图标 24px、边距 4px，
+            // 使「?」符号的字号与 LM 节点标题栏按钮完全相同
+            const helpIconSize = 24;
             const helpIconMargin = 4;
             const getTitleHeight = () => globalThis.LiteGraph?.NODE_TITLE_HEIGHT ?? 30;
 
@@ -343,20 +346,13 @@ app.registerExtension({
                     this.__textEditorHelpElement.style.top = `${transform.f + appCanvasRect.y}px`;
                 }
 
+                // 展开中或鼠标悬停时高亮
+                const helpActive = !!(this.__textEditorHelpVisible || this.__textEditorHelpHovered);
+
                 ctx.save();
                 ctx.translate(iconX, iconY);
-                ctx.beginPath();
-                ctx.arc(helpIconSize / 2, helpIconSize / 2, helpIconSize / 2 - 1, 0, Math.PI * 2);
-                ctx.fillStyle = this.__textEditorHelpVisible ? "rgba(96,165,250,.35)" : "rgba(96,165,250,.14)";
-                ctx.fill();
-                ctx.strokeStyle = this.__textEditorHelpVisible ? "#bfdbfe" : "rgba(147,197,253,.7)";
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-                ctx.fillStyle = "#dbeafe";
-                ctx.font = "bold 15px system-ui, sans-serif";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText("?", helpIconSize / 2, helpIconSize / 2 + 1);
+                ctx.scale(helpIconSize / 32, helpIconSize / 32);
+                drawNodeHelpButton(ctx, helpActive);
                 ctx.restore();
                 return result;
             };
@@ -376,6 +372,33 @@ app.registerExtension({
                     return true;
                 }
                 return onMouseDown?.apply(this, arguments);
+            };
+
+            // 帮助按钮悬停高亮
+            const onMouseMove = nodeType.prototype.onMouseMove;
+            nodeType.prototype.onMouseMove = function (event, localPos, canvas) {
+                const result = onMouseMove?.apply(this, arguments);
+                const iconX = this.size[0] - helpIconSize - helpIconMargin;
+                const titleHeight = getTitleHeight();
+                const iconY = -titleHeight + (titleHeight - helpIconSize) / 2;
+                const hovered = !!localPos
+                    && localPos[0] >= iconX && localPos[0] <= iconX + helpIconSize
+                    && localPos[1] >= iconY && localPos[1] <= iconY + helpIconSize;
+                if (hovered !== this.__textEditorHelpHovered) {
+                    this.__textEditorHelpHovered = hovered;
+                    this.setDirtyCanvas(true, true);
+                }
+                return result;
+            };
+
+            const onMouseLeave = nodeType.prototype.onMouseLeave;
+            nodeType.prototype.onMouseLeave = function () {
+                const result = onMouseLeave?.apply(this, arguments);
+                if (this.__textEditorHelpHovered) {
+                    this.__textEditorHelpHovered = false;
+                    this.setDirtyCanvas(true, true);
+                }
+                return result;
             };
 
             nodeType.prototype.onRemoved = function () {

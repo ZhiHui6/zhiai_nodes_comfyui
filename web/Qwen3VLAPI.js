@@ -1,5 +1,18 @@
 import { app } from "/scripts/app.js";
+import { drawNodeHelpButton } from "./node_title_icons.js";
 import { api } from "/scripts/api.js";
+import {
+    CATEGORY_ALL,
+    COMFY_CATEGORY_THEME,
+    applyCategoryTheme,
+    buildCategoryFilter,
+    buildCategoryPicker,
+    categoryBadgeHtml,
+    deriveCategories,
+    escapeHtml,
+    matchesCategory,
+    requestCategoryRemove,
+} from "./template_categories.js";
 
 const i18n = {
     zh: {
@@ -18,6 +31,8 @@ const i18n = {
         importConfig: "导入配置",
         apply: "应用",
         cancel: "取消",
+        confirm: "确定",
+        save: "保存",
         platform: "平台",
         apiKey: "API密钥",
         apiKeyDesc: "请输入平台的API密钥",
@@ -82,6 +97,20 @@ const i18n = {
         manageTemplates: "管理模板",
         selectTemplate: "选择模板",
         searchTemplates: "搜索模板...",
+        templateCategory: "分类",
+        categoryAll: "全部",
+        categoryNone: "未分类",
+        categoryNamePlaceholder: "输入分类名称",
+        categoryRename: "重命名分类",
+        categoryDelete: "删除分类",
+        confirmDeleteCategory: "确定要删除分类「{name}」吗？该分类下的模板会变为未分类。",
+        categoryDeleted: "分类已删除",
+        categoryDeleteFailed: "分类删除失败",
+        categoryRenamed: "分类已重命名",
+        categoryRenameFailed: "分类重命名失败",
+        categoryManage: "管理分类",
+        categoryManageEmpty: "暂无分类",
+        close: "关闭",
         noTemplates: "暂无模板，请在设置界面中管理模板",
         templateApplied: "模板已应用",
         checking: "加载中...",
@@ -89,6 +118,7 @@ const i18n = {
         navTemplates: "模板管理",
         templateManagement: "快捷系统提示词模板管理",
         createTemplate: "新建模板",
+        importFromLM: "从LM模板调用",
         editTemplate: "编辑系统提示词模板",
         templateName: "模板名称",
         templateContent: "模板内容",
@@ -137,6 +167,8 @@ const i18n = {
         importConfig: "Import Config",
         apply: "Apply",
         cancel: "Cancel",
+        confirm: "Confirm",
+        save: "Save",
         platform: "Platform",
         apiKey: "API Key",
         apiKeyDesc: "Please enter the platform's API key",
@@ -201,6 +233,20 @@ const i18n = {
         manageTemplates: "Manage Templates",
         selectTemplate: "Select Template",
         searchTemplates: "Search templates...",
+        templateCategory: "Category",
+        categoryAll: "All",
+        categoryNone: "Uncategorized",
+        categoryNamePlaceholder: "Enter category name",
+        categoryRename: "Rename category",
+        categoryDelete: "Delete category",
+        confirmDeleteCategory: "Delete the category “{name}”? Its templates will become uncategorized.",
+        categoryDeleted: "Category deleted",
+        categoryDeleteFailed: "Failed to delete category",
+        categoryRenamed: "Category renamed",
+        categoryRenameFailed: "Failed to rename category",
+        categoryManage: "Manage categories",
+        categoryManageEmpty: "No categories yet",
+        close: "Close",
         noTemplates: "No templates yet. Manage templates in the settings interface",
         templateApplied: "Template applied",
         checking: "Loading...",
@@ -208,6 +254,7 @@ const i18n = {
         navTemplates: "Template Manager",
         templateManagement: "Quick System Prompt Template Management",
         createTemplate: "Create Template",
+        importFromLM: "Import from LM Presets",
         editTemplate: "Edit System Prompt Template",
         templateName: "Template Name",
         templateContent: "Template Content",
@@ -304,19 +351,6 @@ function createQwen3VLHelpPopup(description) {
     `;
 
     docElement.innerHTML = `<div style="overflow-y:auto;max-height:540px;padding-right:8px;scrollbar-width:thin;scrollbar-color:rgba(96,165,250,0.3) transparent;">${description}</div>`;
-
-    const accent = document.createElement('div');
-    accent.style.cssText = `
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, #3b82f6, #06b6d4, #3b82f6);
-        border-radius: 16px 16px 0 0;
-        opacity: 0.8;
-    `;
-    docElement.insertBefore(accent, docElement.firstChild);
 
     document.body.appendChild(docElement);
     return docElement;
@@ -706,6 +740,7 @@ class APIConfigManager {
                             <option value="time">${$t('sortByTime')}</option>
                         </select>
                         <button id="qwen3vl-template-create" style="padding:6px 14px;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;transition:all 0.2s ease;white-space:nowrap;">${$t('createTemplate')}</button>
+                        <button id="qwen3vl-template-import-lm" style="padding:6px 14px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;transition:all 0.2s ease;white-space:nowrap;">${$t('importFromLM')}</button>
                     </div>
                     <div id="qwen3vl-template-list" style="overflow-y:auto;border:1px solid var(--border-color);border-radius:6px;background:var(--comfy-input-bg);">
                         <div style="padding:20px;text-align:center;color:var(--descrip-text);font-size:12px;">${$t('checking')}</div>
@@ -759,6 +794,45 @@ class APIConfigManager {
         const templateSortSelect = dialog.querySelector("#qwen3vl-template-sort");
         const templateListEl = dialog.querySelector("#qwen3vl-template-list");
         const templateCreateBtn = dialog.querySelector("#qwen3vl-template-create");
+        let qwen3vlTemplateCategory = CATEGORY_ALL;
+
+        const categoryFilter = buildCategoryFilter({
+            templates: [],
+            allLabel: $t('categoryAll'),
+            noneLabel: $t('categoryNone'),
+            renameLabel: $t('categoryRename'),
+            removeLabel: $t('categoryDelete'),
+            manageLabel: $t('categoryManage'),
+            manageEmptyLabel: $t('categoryManageEmpty'),
+            confirmLabel: $t('confirm'),
+            cancelLabel: $t('cancel'),
+            closeLabel: $t('close'),
+            newPlaceholder: $t('categoryNamePlaceholder'),
+            onPick: (key) => {
+                qwen3vlTemplateCategory = key;
+                renderTemplateList();
+            },
+            onRenamed: async () => {
+                showQwen3VLToast($t('categoryRenamed'), "success");
+                await loadTemplates();
+            },
+            onRequestRemove: async (name) => {
+                if (!confirm($t('confirmDeleteCategory').replace("{name}", name))) return;
+                const result = await requestCategoryRemove(name);
+                if (result.ok) {
+                    showQwen3VLToast($t('categoryDeleted'), "success");
+                    await loadTemplates();
+                } else {
+                    showQwen3VLToast($t('categoryDeleteFailed'), "error");
+                }
+            },
+            onError: () => {
+                showQwen3VLToast($t('categoryRenameFailed'), "error");
+            },
+        });
+        applyCategoryTheme(templatesPage, COMFY_CATEGORY_THEME);
+        categoryFilter.element.style.marginBottom = "10px";
+        templateListEl.parentNode.insertBefore(categoryFilter.element, templateListEl);
         
         const loadTemplates = async () => {
             try {
@@ -766,10 +840,12 @@ class APIConfigManager {
                 if (response.ok) {
                     const data = await response.json();
                     qwen3vlTemplates = data.templates || [];
+                    categoryFilter.sync(qwen3vlTemplates);
                     renderTemplateList();
                 }
             } catch (e) {
                 qwen3vlTemplates = [];
+                categoryFilter.sync(qwen3vlTemplates);
                 renderTemplateList();
             }
             setTimeout(() => { syncPageHeight(); }, 50);
@@ -781,7 +857,7 @@ class APIConfigManager {
         };
         
         const renderTemplateList = () => {
-            let filtered = [...qwen3vlTemplates];
+            let filtered = qwen3vlTemplates.filter(t => matchesCategory(t, qwen3vlTemplateCategory));
             const searchTerm = templateSearchInput.value.toLowerCase().trim();
             if (searchTerm) {
                 filtered = filtered.filter(t => t.name.toLowerCase().includes(searchTerm) || t.content.toLowerCase().includes(searchTerm));
@@ -798,7 +874,8 @@ class APIConfigManager {
             }
             templateListEl.innerHTML = filtered.map(template => `
                 <div data-id="${template.id}" style="display:flex;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border-color);transition:background 0.15s ease;">
-                    <span style="flex:1;font-size:13px;font-weight:500;color:var(--input-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${template.name}">${template.name}</span>
+                    <span style="flex:1;font-size:13px;font-weight:500;color:var(--input-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(template.name)}">${escapeHtml(template.name)}</span>
+                    ${categoryBadgeHtml(template.category, qwen3vlTemplateCategory)}
                     <span style="font-size:11px;color:var(--descrip-text);margin:0 12px;white-space:nowrap;">${formatTime(template.updated_at)}</span>
                     <div style="display:flex;gap:6px;">
                         <button class="qwen3vl-template-edit-btn" data-id="${template.id}" style="padding:4px 10px;background:transparent;border:1px solid var(--border-color);border-radius:4px;color:var(--input-text);cursor:pointer;font-size:11px;transition:all 0.2s ease;">${$t('edit')}</button>
@@ -822,9 +899,11 @@ class APIConfigManager {
             });
         };
         
-        const showTemplateEditor = (templateId = null) => {
-            const template = templateId ? qwen3vlTemplates.find(t => t.id === templateId) : null;
-            const isEdit = !!template;
+        const showTemplateEditor = (templateId = null, prefill = null) => {
+            const found = templateId ? qwen3vlTemplates.find(t => t.id === templateId) : null;
+            // prefill：从 LM 预设带入的预填内容（无 id），保存时走「新建」
+            const template = found || prefill || null;
+            const isEdit = !!found;
             
             const editorOverlay = document.createElement("div");
             editorOverlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10005;display:flex;align-items:center;justify-content:center;";
@@ -836,7 +915,11 @@ class APIConfigManager {
                 <h3 style="margin:0 0 20px 0;font-size:18px;font-weight:600;">${isEdit ? $t('editTemplate') : $t('createTemplate')}</h3>
                 <div style="margin-bottom:16px;">
                     <label style="display:block;margin-bottom:8px;font-size:13px;color:var(--descrip-text);">${$t('templateName')}</label>
-                    <input type="text" id="qwen3vl-template-name-input" value="${template ? template.name : ''}" placeholder="${$t('templateNamePlaceholder')}" style="width:100%;padding:10px 12px;background:var(--comfy-input-bg);border:1px solid var(--border-color);border-radius:6px;color:var(--input-text);font-size:14px;box-sizing:border-box;">
+                    <input type="text" id="qwen3vl-template-name-input" value="${template ? escapeHtml(template.name) : ''}" placeholder="${$t('templateNamePlaceholder')}" style="width:100%;padding:10px 12px;background:var(--comfy-input-bg);border:1px solid var(--border-color);border-radius:6px;color:var(--input-text);font-size:14px;box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block;margin-bottom:8px;font-size:13px;color:var(--descrip-text);" for="qwen3vl-template-category-select">${$t('templateCategory')}</label>
+                    <div id="qwen3vl-template-category-slot"></div>
                 </div>
                 <div style="margin-bottom:20px;flex:1;display:flex;flex-direction:column;">
                     <label style="display:block;margin-bottom:8px;font-size:13px;color:var(--descrip-text);">${$t('templateContent')}</label>
@@ -849,6 +932,20 @@ class APIConfigManager {
             `;
             
             const closeEditor = () => { editorOverlay.remove(); };
+
+            const categoryPicker = buildCategoryPicker({
+                categories: deriveCategories(qwen3vlTemplates),
+                value: template ? template.category : "",
+                noneLabel: $t('categoryNone'),
+            });
+            categoryPicker.select.id = "qwen3vl-template-category-select";
+            applyCategoryTheme(editorDialog, {
+                ...COMFY_CATEGORY_THEME,
+                "tc-field-font": "14px",
+                "tc-field-padding": "10px 12px",
+            });
+            categoryPicker.select.style.lineHeight = "inherit";
+            editorDialog.querySelector("#qwen3vl-template-category-slot").appendChild(categoryPicker.element);
             editorDialog.querySelector("#qwen3vl-template-cancel-btn").onclick = closeEditor;
             editorDialog.querySelector("#qwen3vl-template-save-btn").onclick = async () => {
                 const name = editorDialog.querySelector("#qwen3vl-template-name-input").value.trim();
@@ -857,9 +954,9 @@ class APIConfigManager {
                 try {
                     let response;
                     if (isEdit) {
-                        response = await fetch(`/zhihui_nodes/qwen3vl/templates/${templateId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, content }) });
+                        response = await fetch(`/zhihui_nodes/qwen3vl/templates/${templateId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, content, category: categoryPicker.value() }) });
                     } else {
-                        response = await fetch("/zhihui_nodes/qwen3vl/templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, content }) });
+                        response = await fetch("/zhihui_nodes/qwen3vl/templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, content, category: categoryPicker.value() }) });
                     }
                     const result = await response.json();
                     if (result.status === "success") {
@@ -898,6 +995,58 @@ class APIConfigManager {
         templateSearchInput.addEventListener("input", renderTemplateList);
         templateSortSelect.addEventListener("change", renderTemplateList);
         templateCreateBtn.onclick = () => showTemplateEditor();
+
+        // 「从LM模板调用」：列出 LM Studio 节点的提示词预设，点选后预填进模板编辑器（保存即入库）
+        const templateImportLMBtn = dialog.querySelector("#qwen3vl-template-import-lm");
+        templateImportLMBtn.onclick = () => {
+            const pickerOverlay = document.createElement("div");
+            pickerOverlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10006;display:flex;align-items:center;justify-content:center;";
+
+            const pickerDialog = document.createElement("div");
+            pickerDialog.style.cssText = "width:460px;max-width:90vw;max-height:70vh;background:var(--comfy-menu-bg);border:1px solid var(--border-color);border-radius:10px;padding:16px;color:var(--input-text);display:flex;flex-direction:column;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,0.5);";
+
+            const pickerTitle = document.createElement("h4");
+            pickerTitle.style.cssText = "margin:0;font-size:15px;font-weight:600;";
+            pickerTitle.textContent = $t('importFromLM');
+
+            const pickerList = document.createElement("div");
+            pickerList.style.cssText = "flex:1;overflow-y:auto;border:1px solid var(--border-color);border-radius:6px;background:var(--comfy-input-bg);min-height:120px;";
+            pickerList.innerHTML = `<div style="padding:20px;text-align:center;color:var(--descrip-text);font-size:12px;">${$t('checking')}</div>`;
+
+            pickerOverlay.onclick = (e) => { if (e.target === pickerOverlay) pickerOverlay.remove(); };
+
+            pickerDialog.appendChild(pickerTitle);
+            pickerDialog.appendChild(pickerList);
+            pickerOverlay.appendChild(pickerDialog);
+            document.body.appendChild(pickerOverlay);
+
+            fetch("/zhihui_nodes/lm_prompt_presets").then(r => r.json()).then(data => {
+                const presets = data.presets || [];
+                if (!presets.length) {
+                    pickerList.innerHTML = `<div style="padding:20px;text-align:center;color:var(--descrip-text);font-size:12px;">${$t('noTemplates')}</div>`;
+                    return;
+                }
+                pickerList.innerHTML = presets.map((p, i) => `
+                    <div data-idx="${i}" style="padding:10px 12px;border-bottom:1px solid var(--border-color);cursor:pointer;transition:background 0.15s ease;">
+                        <div style="font-size:13px;font-weight:500;color:var(--input-text);">${p.name}</div>
+                        <div style="font-size:11px;color:var(--descrip-text);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${String(p.content).substring(0, 80)}${String(p.content).length > 80 ? '...' : ''}</div>
+                    </div>
+                `).join("");
+                pickerList.querySelectorAll("[data-idx]").forEach(item => {
+                    item.onmouseover = () => { item.style.background = "rgba(102,126,234,0.15)"; };
+                    item.onmouseout = () => { item.style.background = "transparent"; };
+                    item.onclick = () => {
+                        const preset = presets[Number(item.dataset.idx)];
+                        pickerOverlay.remove();
+                        // 不带 id：走「新建」流程，把 LM 预设保存为一条共用模板
+                        showTemplateEditor(null, { name: preset.name, content: preset.content });
+                    };
+                });
+            }).catch(() => {
+                pickerList.innerHTML = `<div style="padding:20px;text-align:center;color:#ef4444;font-size:12px;">${$t('templateCreateFailed')}</div>`;
+            });
+        };
+
         loadTemplates();
         
         this.renderPlatformConfigs(config);
@@ -2111,9 +2260,26 @@ async function showQwen3VLTemplateSelector(node, btnRect) {
     loadingEl.style.cssText = "padding:20px;text-align:center;color:#9ca3af;font-size:12px;";
     loadingEl.textContent = $t('checking');
     listContainer.appendChild(loadingEl);
-    
+
+    let selectedCategory = CATEGORY_ALL;
+
+    const selectorFilter = buildCategoryFilter({
+        templates: [],
+        allLabel: $t('categoryAll'),
+        noneLabel: $t('categoryNone'),
+        manage: false,
+        showCounts: false,
+        onPick: (key) => {
+            selectedCategory = key;
+            renderList(currentTemplates, searchInput.value);
+        },
+    });
+    selectorFilter.element.style.marginBottom = "8px";
+    applyCategoryTheme(dialog, COMFY_CATEGORY_THEME);
+
     dialog.appendChild(header);
     dialog.appendChild(searchInput);
+    dialog.appendChild(selectorFilter.element);
     dialog.appendChild(listContainer);
     
     const manageBtn = document.createElement("button");
@@ -2165,16 +2331,16 @@ async function showQwen3VLTemplateSelector(node, btnRect) {
     setTimeout(() => { document.addEventListener("mousedown", handleClickOutside); }, 10);
     
     const renderList = (templates, searchTerm = "") => {
-        let filtered = templates;
+        let filtered = templates.filter(t => matchesCategory(t, selectedCategory));
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            filtered = templates.filter(t => t.name.toLowerCase().includes(term) || t.content.toLowerCase().includes(term));
+            filtered = filtered.filter(t => t.name.toLowerCase().includes(term) || t.content.toLowerCase().includes(term));
         }
         if (filtered.length === 0) {
             listContainer.innerHTML = `<div style="padding:20px;text-align:center;color:#9ca3af;font-size:12px;">${$t('noTemplates')}</div>`;
             return;
         }
-        listContainer.innerHTML = filtered.map(template => `<div data-id="${template.id}" style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background 0.15s ease;"><div style="font-size:14px;font-weight:500;color:#e8e8e8;">${template.name}</div></div>`).join("");
+        listContainer.innerHTML = filtered.map(template => `<div data-id="${template.id}" style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background 0.15s ease;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:14px;font-weight:500;color:#e8e8e8;">${escapeHtml(template.name)}</span>${categoryBadgeHtml(template.category, selectedCategory)}</div></div>`).join("");
         listContainer.querySelectorAll("[data-id]").forEach(item => {
             item.onmouseover = () => { item.style.background = "rgba(102,126,234,0.15)"; };
             item.onmouseout = () => { item.style.background = "transparent"; };
@@ -2202,6 +2368,7 @@ async function showQwen3VLTemplateSelector(node, btnRect) {
         if (response.ok) {
             const data = await response.json();
             currentTemplates = data.templates || [];
+            selectorFilter.sync(currentTemplates);
             renderList(currentTemplates);
         } else {
             listContainer.innerHTML = `<div style="padding:20px;text-align:center;color:#ef4444;font-size:12px;">${$t('noTemplates')}</div>`;
@@ -2494,26 +2661,13 @@ app.registerExtension({
                         helpElement.style.top = `${transform.f + bcr.y}px`;
                     }
 
+                    // 展开中或鼠标悬停时高亮
+                    const helpActive = !!(this._qwen3vlHelp || this._qwen3vlHelpHovered);
+
                     ctx.save();
                     ctx.translate(x, y);
                     ctx.scale(iconSize / 32, iconSize / 32);
-                    
-                    ctx.beginPath();
-                    ctx.arc(16, 16, 14, 0, Math.PI * 2);
-                    ctx.fillStyle = this._qwen3vlHelp ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.15)';
-                    ctx.fill();
-                    
-                    ctx.beginPath();
-                    ctx.arc(16, 16, 14, 0, Math.PI * 2);
-                    ctx.strokeStyle = this._qwen3vlHelp ? '#60a5fa' : 'rgba(96, 165, 250, 0.6)';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                    
-                    ctx.font = 'bold 24px system-ui';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillStyle = this._qwen3vlHelp ? '#93c5fd' : '#60a5fa';
-                    ctx.fillText('?', 16, 19);
+                    drawNodeHelpButton(ctx, helpActive);
                     
                     ctx.restore();
                     return r;
@@ -2532,6 +2686,32 @@ app.registerExtension({
                     ) {
                         this._qwen3vlHelp = !this._qwen3vlHelp;
                         return true;
+                    }
+                    return r;
+                };
+
+                // 帮助按钮悬停高亮
+                const mouseMove = nodeType.prototype.onMouseMove;
+                nodeType.prototype.onMouseMove = function (e, localPos, canvas) {
+                    const r = mouseMove ? mouseMove.apply(this, arguments) : undefined;
+                    const iconX = this.size[0] - iconSize - iconMargin;
+                    const iconY = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
+                    const hovered = !!localPos
+                        && localPos[0] > iconX && localPos[0] < iconX + iconSize
+                        && localPos[1] > iconY && localPos[1] < iconY + iconSize;
+                    if (hovered !== this._qwen3vlHelpHovered) {
+                        this._qwen3vlHelpHovered = hovered;
+                        this.setDirtyCanvas(true, true);
+                    }
+                    return r;
+                };
+
+                const mouseLeave = nodeType.prototype.onMouseLeave;
+                nodeType.prototype.onMouseLeave = function () {
+                    const r = mouseLeave ? mouseLeave.apply(this, arguments) : undefined;
+                    if (this._qwen3vlHelpHovered) {
+                        this._qwen3vlHelpHovered = false;
+                        this.setDirtyCanvas(true, true);
                     }
                     return r;
                 };

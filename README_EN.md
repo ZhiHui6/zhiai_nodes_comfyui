@@ -2,18 +2,16 @@
 
 # 🎨 Zhi.AI ComfyUI Node Pack 
 
-For complete changelog: See <a href="CHANGELOG.md">`CHANGELOG.md`</a>   
-
 ## 📖 Project Introduction
 
-This is a ComfyUI custom node tool collection carefully created by <span style="color: red;">**Binity**</span>, designed to provide users with a series of practical and efficient nodes to enhance and extend ComfyUI's functionality. This node collection contains 55+ functional nodes, covering text processing, prompt optimization, image processing, translation tools, music creation assistance, AI vision understanding, Latent processing, and other aspects, providing comprehensive support for your AI creation.
+This is a ComfyUI custom node tool collection carefully created by **Binity**, designed to provide users with a series of practical and efficient nodes to enhance and extend ComfyUI's functionality. This node collection contains 55+ functional nodes, covering text processing, prompt optimization, image processing, translation tools, music creation assistance, AI vision understanding, Latent processing, and other aspects, providing comprehensive support for your AI creation.
 
 ***If this project helps you, please give us a ⭐Star! Your support is our motivation for continuous improvement.***
 
 ## ✨ Main Features
 
 ### 🌍 **Built-in Chinese/English Localization**
-The node pack ships with its own Chinese dictionary and follows ComfyUI's **Language** setting, automatically switching node titles, descriptions, widget labels, port names and combo option text — no third-party translation extension required. Combo options only change their display text, while the submitted values stay in English. For detailed instructions, please refer to <a href="doc/Localization_Guide.md">Localization_Guide.md</a>.
+The node pack ships with its own Chinese/English dictionary and follows ComfyUI's **Language** setting, automatically switching the node language — no third-party translation extension required.
 
 ### **Core Functionality Features**
 
@@ -727,6 +725,7 @@ Powerful cloud-based vision understanding node, supporting multi-platform online
 - <b>Cloud Deployment</b>: No local GPU required, calls cloud models through API
 - <b>Dual Configuration Modes</b>: Platform presets and fully custom modes
 - <b>Batch Processing</b>: Supports folder batch processing with automatic result saving
+- <b>Template Categories</b>: Prompt templates shared with the LM Studio node support single-level categories — filter, create, rename and delete them
 
 <br>
 <div align="left">
@@ -882,10 +881,11 @@ A vision understanding node that connects to a local LM Studio server, supportin
 <b>Core Features</b>:
 - <b>Local Deployment</b>: Connect to local LM Studio server, no cloud API key required
 - <b>Multiple Preset Templates</b>: Supports tag backtracking, detailed description, creative writing, and more
+- <b>Template Categories</b>: Prompt templates can be grouped into single-level categories — filter, create, rename and delete categories from the settings dialog
 - <b>Output Language Control</b>: Supports Chinese, English, and bilingual output
 - <b>Auto Model Discovery</b>: Automatically fetches loaded model list from LM Studio
 - <b>Model Refresh</b>: One-click refresh button to reload model list when display issues occur
-- <b>Multi-Image Input</b>: Supports up to 4 images for single-round inference
+- <b>Multi-Image Input</b>: one image socket on the canvas — a spare port appears after each image you connect, up to 12 images per run
 - <b>Inference Log Panel</b>: Displays real-time inference logs with current run information only
 - <b>Visual Settings</b>: Provides status settings interface for easy parameter configuration
 
@@ -1032,6 +1032,20 @@ Professional GPU VRAM reservation management tool for controlling ComfyUI's VRAM
 <div align="left">
 <img src="images/Reserved VRAM Setter.jpg" alt="Reserved VRAM Setter" width="45%"/>
 </div>
+</td>
+</tr>
+<tr>
+<td><b>Text Encoder Release</b><br><code>TextEncoderRelease</code></td>
+<td>
+
+Text encoder release tool that unloads the connected CLIP (text encoder) from VRAM before sampling, freeing memory up front for workflows where the text encoder is large and sampling needs the full VRAM budget.
+
+<b>Features</b>:
+- <b>Execution Dependency</b>: wire the conditioning sockets so the encoder is released only after text encoding has finished
+- <b>Chain Pass-through</b>: the model socket is returned unchanged, so the node can sit right before the sampler
+- <b>Runs Every Prompt</b>: bypasses node caching so the release always happens
+- <b>Switches</b>: can be disabled entirely, or run silently without log output
+
 </td>
 </tr>
 <tr>

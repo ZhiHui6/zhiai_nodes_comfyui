@@ -818,7 +818,7 @@
   "灵感套装": {
     "file": "inspiration_sets.json",
     "children": {
-      "潪佳精选": {
+      "智爱精选": {
         "file": "zhijia_selection.json",
         "children": null
       },

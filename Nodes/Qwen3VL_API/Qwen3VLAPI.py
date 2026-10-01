@@ -31,6 +31,8 @@ except ImportError:
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
+TEMPLATE_CATEGORY_MAX_LEN = 24
+
 class Qwen3VLAPI:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("result",)
@@ -1470,9 +1472,38 @@ if PROMPT_SERVER_AVAILABLE:
                 status=500
             )
 
-    QWEN3VL_TEMPLATES_FILE = os.path.join(current_dir, "qwen3vl_system_prompt_templates.json")
+    # ---- 系统提示词模板：统一存放在插件根 templates/ 独立文件夹（全节点共用） ----
+    _PLUGIN_ROOT = os.path.dirname(os.path.dirname(current_dir))
+    _TEMPLATES_DIR = os.path.join(_PLUGIN_ROOT, "templates")
+    QWEN3VL_TEMPLATES_FILE = os.path.join(_TEMPLATES_DIR, "system_prompt_templates.json")
+
+    def _migrate_templates_if_needed():
+        """旧版模板存于 Qwen3VL_API 目录；首次运行时迁移到插件根 templates/（旧文件保留作备份）。"""
+        legacy = os.path.join(current_dir, "qwen3vl_system_prompt_templates.json")
+        try:
+            if not os.path.exists(QWEN3VL_TEMPLATES_FILE) and os.path.exists(legacy):
+                with open(legacy, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                os.makedirs(_TEMPLATES_DIR, exist_ok=True)
+                with open(QWEN3VL_TEMPLATES_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"[ZhiAI] 模板文件迁移失败（暂沿用旧文件）: {e}")
+
+    def _clean_category(value):
+        text = "".join(ch for ch in str(value or "").strip() if ch >= " " and ch != "\x7f")
+        return text[:TEMPLATE_CATEGORY_MAX_LEN].strip()
+
+    def _derive_categories(templates):
+        names = []
+        for template in templates:
+            name = _clean_category(template.get("category"))
+            if name and name not in names:
+                names.append(name)
+        return names
 
     def _load_qwen3vl_templates():
+        _migrate_templates_if_needed()
         if os.path.exists(QWEN3VL_TEMPLATES_FILE):
             try:
                 with open(QWEN3VL_TEMPLATES_FILE, 'r', encoding='utf-8') as f:
@@ -1493,7 +1524,10 @@ if PROMPT_SERVER_AVAILABLE:
     @PromptServer.instance.routes.get("/zhihui_nodes/qwen3vl/templates")
     async def get_qwen3vl_templates(request):
         templates = _load_qwen3vl_templates()
-        return web.json_response({"templates": templates})
+        return web.json_response({
+            "templates": templates,
+            "categories": _derive_categories(templates),
+        })
 
     @PromptServer.instance.routes.post("/zhihui_nodes/qwen3vl/templates")
     async def create_qwen3vl_template(request):
@@ -1508,6 +1542,7 @@ if PROMPT_SERVER_AVAILABLE:
                 "id": str(uuid.uuid4()),
                 "name": name,
                 "content": content,
+                "category": _clean_category(data.get("category")),
                 "created_at": int(time.time()),
                 "updated_at": int(time.time())
             }
@@ -1533,6 +1568,8 @@ if PROMPT_SERVER_AVAILABLE:
                 if template["id"] == template_id:
                     templates[i]["name"] = name
                     templates[i]["content"] = content
+                    if "category" in data:
+                        templates[i]["category"] = _clean_category(data.get("category"))
                     templates[i]["updated_at"] = int(time.time())
                     if _save_qwen3vl_templates(templates):
                         return web.json_response({"status": "success", "template": templates[i]})
@@ -1554,5 +1591,77 @@ if PROMPT_SERVER_AVAILABLE:
                 return web.json_response({"status": "success"})
             else:
                 return web.json_response({"status": "error", "message": "Failed to save templates"}, status=500)
+        except Exception as e:
+            return web.json_response({"status": "error", "message": str(e)}, status=500)
+
+    @PromptServer.instance.routes.post("/zhihui_nodes/template_categories/rename")
+    async def rename_template_category(request):
+        try:
+            data = await request.json()
+            source = _clean_category(data.get("from"))
+            target = _clean_category(data.get("to"))
+            if not source:
+                return web.json_response({"status": "error", "message": "Source category is required"}, status=400)
+            templates = _load_qwen3vl_templates()
+            matched = 0
+            for template in templates:
+                if _clean_category(template.get("category")) == source:
+                    template["category"] = target
+                    matched += 1
+            if not matched:
+                return web.json_response({"status": "error", "message": "Category not found"}, status=404)
+            if not _save_qwen3vl_templates(templates):
+                return web.json_response({"status": "error", "message": "Failed to save templates"}, status=500)
+            return web.json_response({
+                "status": "success",
+                "updated": matched,
+                "categories": _derive_categories(templates),
+            })
+        except Exception as e:
+            return web.json_response({"status": "error", "message": str(e)}, status=500)
+
+    @PromptServer.instance.routes.post("/zhihui_nodes/template_categories/remove")
+    async def remove_template_category(request):
+        try:
+            data = await request.json()
+            source = _clean_category(data.get("name"))
+            if not source:
+                return web.json_response({"status": "error", "message": "Category name is required"}, status=400)
+            templates = _load_qwen3vl_templates()
+            matched = 0
+            for template in templates:
+                if _clean_category(template.get("category")) == source:
+                    template["category"] = ""
+                    matched += 1
+            if not matched:
+                return web.json_response({"status": "error", "message": "Category not found"}, status=404)
+            if not _save_qwen3vl_templates(templates):
+                return web.json_response({"status": "error", "message": "Failed to save templates"}, status=500)
+            return web.json_response({
+                "status": "success",
+                "updated": matched,
+                "categories": _derive_categories(templates),
+            })
+        except Exception as e:
+            return web.json_response({"status": "error", "message": str(e)}, status=500)
+
+    # ---- LM Studio 提示词预设（只读）：供其它节点「从LM模板调用」 ----
+    LM_PROMPT_PRESETS_FILE = os.path.join(
+        _PLUGIN_ROOT, "Nodes", "LMStudio", "lmstudio_prompt_presets.json"
+    )
+
+    @PromptServer.instance.routes.get("/zhihui_nodes/lm_prompt_presets")
+    async def get_lm_prompt_presets(request):
+        try:
+            presets = []
+            if os.path.exists(LM_PROMPT_PRESETS_FILE):
+                with open(LM_PROMPT_PRESETS_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                groups = data.get("default", {}) if isinstance(data, dict) else {}
+                for name, content in groups.items():
+                    if name == "Ignore" or not str(content or "").strip():
+                        continue
+                    presets.append({"name": name, "content": content})
+            return web.json_response({"presets": presets})
         except Exception as e:
             return web.json_response({"status": "error", "message": str(e)}, status=500)
