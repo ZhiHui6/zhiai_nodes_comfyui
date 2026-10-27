@@ -146,7 +146,7 @@ async function openTypeDesignerDialog(node) {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
             color: var(--td-text-primary);
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -198,7 +198,7 @@ async function openTypeDesignerDialog(node) {
             background: var(--td-accent-color);
             color: #fff;
             border-radius: 6px;
-            font-family: serif;
+            font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
         }
         .td-search-wrapper {
             position: absolute;
@@ -383,7 +383,7 @@ async function openTypeDesignerDialog(node) {
         }
         .td-section-title {
             font-size: 20px;
-            font-family: "SimHei", "Microsoft YaHei", sans-serif;
+            font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             font-weight: 700;

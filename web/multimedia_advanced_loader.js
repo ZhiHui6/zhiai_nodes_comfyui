@@ -1,7 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { applyNode, getLocale } from "./zhiai_i18n.js";
-import { drawNodeHelpButton } from "./node_title_icons.js";
+import { drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 import { attachMiddleDragPan, watchNodeModeVisual } from "./panel_kit.js";
 
 const NODE_CLASS = "MultimediaAdvancedLoader";
@@ -19,11 +19,11 @@ const MEDIA_KINDS = ["image", "audio", "video"];
 const IMAGE_KINDS = ["image"];
 const FILTER_KEYS = ["all", "image", "audio", "video"];
 const WIDGET_DEFAULTS = { media_files: "[]", output_files: "[]", output_mode: "select", load_mode: "media" };
-const LOADER_MIN_WIDTH = 500;
+const LOADER_MIN_WIDTH = 333;
 const THUMB_MIN_SIZE = 80;
 const THUMB_MAX_SIZE = 400;
 const THUMB_DEFAULT_SIZE = 200;
-const LOADER_MIN_HEIGHT = 500;
+const LOADER_MIN_HEIGHT = 333;
 const DRAG_MIME = "application/x-zhiai-media-loader-index";
 const BATCH_PER_FRAME = 12;
 
@@ -830,7 +830,7 @@ function ensureStyleSheet() {
     overflow: hidden;
     border: 1px solid #2C5080;
     border-radius: 10px;
-    font-family: PingFang SC, "Source Han Sans SC", "Noto Sans", "Microsoft YaHei", sans-serif;
+    font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
     color: #DDE9F5;
     background: #0A1322;
     --zml-band:
@@ -1009,7 +1009,7 @@ function ensureStyleSheet() {
     backdrop-filter: blur(10px) saturate(1.3);
     -webkit-backdrop-filter: blur(10px) saturate(1.3);
     color: #F2FAFF;
-    font-family: PingFang SC, "Source Han Sans SC", "Noto Sans", "Microsoft YaHei", sans-serif;
+    font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
     font-size: 12px;
     line-height: 1.5;
     letter-spacing: 0.01em;
@@ -1504,7 +1504,7 @@ function ensureStyleSheet() {
     background: rgba(2, 6, 23, 0.72);
     backdrop-filter: blur(10px) saturate(1.3);
     -webkit-backdrop-filter: blur(10px) saturate(1.3);
-    font-family: PingFang SC, "Source Han Sans SC", "Noto Sans", "Microsoft YaHei", sans-serif;
+    font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
     color: #DDE9F5;
     outline: none;
 }
@@ -1615,7 +1615,7 @@ function ensureStyleSheet() {
     border-radius: 10px;
     background: #0A1322;
     color: #DDE9F5;
-    font-family: PingFang SC, "Source Han Sans SC", "Noto Sans", "Microsoft YaHei", sans-serif;
+    font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
     font-size: 13px;
     line-height: 20px;
     box-shadow: 0 18px 44px rgba(2, 6, 23, 0.6);
@@ -2974,7 +2974,7 @@ function createLoaderHelpPopup() {
         "-webkit-backdrop-filter: blur(16px)",
         "position: absolute",
         "color: #E2E8F0",
-        "font: 13px 'Segoe UI', system-ui, -apple-system, sans-serif",
+        "font: 13px 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', sans-serif",
         "line-height: 1.6",
         "padding: 20px 24px 24px 24px",
         "border-radius: 10px",
@@ -3115,6 +3115,7 @@ app.registerExtension({
         nodeType.prototype.onMouseDown = function (e, localPos, canvas) {
             const result = onMouseDown?.apply(this, arguments);
             if (this._zhmlHitHelp(localPos)) {
+                hideTitleTip();
                 this._zhmlHelp = !this._zhmlHelp;
                 this.setDirtyCanvas?.(true, true);
                 return true;
@@ -3130,6 +3131,7 @@ app.registerExtension({
                 this._zhmlHelpHovered = hovered;
                 this.setDirtyCanvas?.(true, true);
             }
+            titleTipHovered(hovered, getLocale() === "zh" ? "节点帮助" : "Node help", e);
             return result;
         };
 
@@ -3140,6 +3142,7 @@ app.registerExtension({
                 this._zhmlHelpHovered = false;
                 this.setDirtyCanvas?.(true, true);
             }
+            hideTitleTip();
             return result;
         };
 

@@ -1,5 +1,5 @@
 import { app } from "/scripts/app.js";
-import { drawNodeHelpButton, drawNodeSettingsButton } from "./node_title_icons.js";
+import { drawNodeHelpButton, drawNodeSettingsButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 import { api } from "/scripts/api.js";
 import {
     attachPanelTooltip,
@@ -66,13 +66,13 @@ const QVL_TOKENS = {
         inset: "inset 0 2px 6px rgba(2, 6, 23, 0.40)",
     },
     motion: { fast: "140ms", base: "220ms", slow: "320ms", easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
-    font: "PingFang SC, Source Han Sans SC, Noto Sans, 'Microsoft YaHei', sans-serif",
+    font: "'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', sans-serif",
 };
 
 const CUSTOM_CONFIG_KEYS = ['custom_1', 'custom_2', 'custom_3', 'custom_4', 'custom_5', 'custom_6'];
 
-const QVL_NODE_MIN_WIDTH = 550;
-const QVL_NODE_MIN_HEIGHT = 642;
+const QVL_NODE_MIN_WIDTH = 367;
+const QVL_NODE_MIN_HEIGHT = 428;
 const QVL_NODE_DEFAULT_WIDTH = 550;
 const QVL_NODE_DEFAULT_HEIGHT = 840;
 
@@ -572,7 +572,7 @@ function createIUOHelpPopup(description) {
         -webkit-backdrop-filter: blur(16px);
         position: absolute;
         color: #e2e8f0;
-        font: 13px 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font: 13px "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
         line-height: 1.6;
         padding: 20px 24px 24px 24px;
         border-radius: 16px;
@@ -3121,7 +3121,7 @@ function iuoPresetLabel(value) {
     return key ? $t(key) : null;
 }
 
-const QVL_PANEL_MIN_WIDTH = 550;
+const QVL_PANEL_MIN_WIDTH = 367;
 
 const IUO_PANEL_LAYOUT = [
     {
@@ -3990,8 +3990,7 @@ function addIUOInputButtons(node) {
 app.registerExtension({
     name: "Comfyui_ImageUnderstandingOnline.APIConfig",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (!nodeData?.category?.startsWith("Zhi.AI/AI Assistant") && 
-            !nodeData?.category?.startsWith("Comfyui_ImageUnderstandingOnline")) {
+        if (nodeData?.name !== "ImageUnderstandingOnline") {
             return;
         }
         
@@ -4217,12 +4216,14 @@ app.registerExtension({
                 nodeType.prototype.onMouseDown = function (e, localPos, canvas) {
                     const r = mouseDown ? mouseDown.apply(this, arguments) : undefined;
                     if (this._hitTitleIcon(localPos, "settings")) {
+                        hideTitleTip();
                         document.getElementById("iuo-template-selector")?.remove();
                         document.querySelector("style[data-iuo-template-style]")?.remove();
                         apiConfigManager.showConfigDialog();
                         return true;
                     }
                     if (this._hitTitleIcon(localPos, "help")) {
+                        hideTitleTip();
                         this._iuoHelp = !this._iuoHelp;
                         return true;
                     }
@@ -4240,6 +4241,14 @@ app.registerExtension({
                         this._iuoHelpHovered = helpHovered;
                         this.setDirtyCanvas(true, true);
                     }
+                    const locale = getLocale();
+                    if (helpHovered) {
+                        titleTipHovered(true, locale === "zh" ? "节点帮助" : "Node help", e);
+                    } else if (settingsHovered) {
+                        titleTipHovered(true, locale === "zh" ? "API 设置" : "API Settings", e);
+                    } else {
+                        hideTitleTip();
+                    }
                     return r;
                 };
 
@@ -4251,6 +4260,7 @@ app.registerExtension({
                         this._iuoSettingsHovered = false;
                         this.setDirtyCanvas(true, true);
                     }
+                    hideTitleTip();
                     return r;
                 };
 

@@ -1,5 +1,5 @@
 import { app } from "/scripts/app.js";
-import { drawNodeHelpButton } from "./node_title_icons.js";
+import { drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 
 const i18n = {
     zh: {
@@ -185,7 +185,7 @@ function createHelpPopup(description, onClose) {
         -webkit-backdrop-filter: blur(16px);
         position: absolute;
         color: #e2e8f0;
-        font: 13px 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font: 13px "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
         line-height: 1.6;
         padding: 20px 24px 24px 24px;
         border-radius: 16px;
@@ -490,7 +490,7 @@ app.registerExtension({
                     border: 1px solid rgba(255, 255, 255, 0.1);
                     border-radius: 8px;
                     overflow: hidden;
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
                     font-size: 11px;
                     color: #E0E0E0;
                     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -3000,6 +3000,7 @@ app.registerExtension({
                 localPos[1] > iconY &&
                 localPos[1] < iconY + iconSize
             ) {
+                hideTitleTip();
                 this._gmmHelp = !this._gmmHelp;
                 return true;
             }
@@ -3018,6 +3019,7 @@ app.registerExtension({
                 this._gmmHelpHovered = hovered;
                 this.setDirtyCanvas(true, true);
             }
+            titleTipHovered(hovered, getLocale() === "zh" ? "节点帮助" : "Node help", e);
             return r;
         };
 
@@ -3028,6 +3030,7 @@ app.registerExtension({
                 this._gmmHelpHovered = false;
                 this.setDirtyCanvas(true, true);
             }
+            hideTitleTip();
             return r;
         };
 

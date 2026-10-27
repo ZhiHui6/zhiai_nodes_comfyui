@@ -4,18 +4,16 @@ from .Nodes.ImageEditingPresets.ImageEditingPresets import ImageEditingPresets
 from .Nodes.SystemPrompt.SystemPromptLoader import SystemPromptLoader
 from .Nodes.SystemPrompt import system_prompt_api
 from .Nodes.MultiLineTextNode import MultiLineTextNode
-from .Nodes.TextCombinerNode import TextCombinerNode
+from .Nodes.PromptCombiner import PromptCombiner
 from .Nodes.TextMergerNode import TextMergerNode
 from .Nodes.TextModifier import TextModifier
 from .Nodes.TextExtractor import TextExtractor
-from .Nodes.TriggerWordMerger import TriggerWordMerger
 from .Nodes.TextSwitch.TextSwitchDualMode import TextSwitchDualMode
 from .Nodes.TextSwitch.PriorityTextSwitch import PriorityTextSwitch
 from .Nodes.ShowAny import ShowAny
 from .Nodes.MultiPlatformTranslate.MultiPlatformTranslate import MultiPlatformTranslate
 from .Nodes.MultiPlatformTranslate.MultiPlatformTranslateAPI import MultiPlatformTranslateAPI
 from .Nodes.PhotographPromptGen.PhotographPromptGenerator import PhotographPromptGenerator
-from .Nodes.WanPromptGenerator import WanPromptGenerator
 from .Nodes.ImageScaler import ImageScaler
 from .Nodes.ImgSwitch.ImageSwitchDualMode import ImageSwitchDualMode
 from .Nodes.ImgSwitch.PriorityImageSwitch import PriorityImageSwitch
@@ -43,7 +41,6 @@ from .Nodes.PhotographPromptGen.zhiai_api import *
 from .Nodes.ResourceCleaner import ResourceCleaner
 from .Nodes.ReservedVRAMSetter import ReservedVRAMSetter
 from .Nodes.TextEncoderRelease import TextEncoderRelease
-from .Nodes.Florence2Plus.florence2plus import Florence2Plus
 from .Nodes.PromptGallery.PromptGallery import PromptGallery
 from .Nodes.PromptGallery import gallery_api
 from .Nodes.TypeDesigner.TypeDesigner import TypeDesigner
@@ -56,6 +53,7 @@ from .Nodes.LMStudio.lmstudio_node import LMStudioNode
 from .Nodes.LMStudio import lmstudio_api
 from .Nodes.GroupSwitchManager import GroupSwitchManager
 from .Nodes.MultimediaAdvancedLoader import MultimediaAdvancedLoader
+from .Nodes.LoraStackLoader import LoraStackLoader
 from .Nodes.VideoPreview import VideoPreview
 from .Nodes.ImageIndexer import ImageIndexer
 
@@ -67,17 +65,15 @@ NODE_CLASS_MAPPINGS = {
     "ImageEditingPresets": ImageEditingPresets,
     "SystemPromptLoader": SystemPromptLoader,
     "MultiLineTextNode": MultiLineTextNode,
-    "TextCombinerNode": TextCombinerNode,
+    "PromptCombiner": PromptCombiner,
     "TextMergerNode": TextMergerNode,
     "TextModifier": TextModifier,
     "TextExtractor": TextExtractor,
-    "TriggerWordMerger": TriggerWordMerger,
     "TextSwitchDualMode": TextSwitchDualMode,
     "PriorityTextSwitch": PriorityTextSwitch,
     "ShowAny": ShowAny,
     "MultiPlatformTranslate": MultiPlatformTranslate,
     "PhotographPromptGenerator": PhotographPromptGenerator,
-    "WanPromptGenerator": WanPromptGenerator,
     "ImageScaler": ImageScaler,
     "ImageSwitchDualMode": ImageSwitchDualMode,
     "PriorityImageSwitch": PriorityImageSwitch,
@@ -104,7 +100,6 @@ NODE_CLASS_MAPPINGS = {
     "ResourceCleaner": ResourceCleaner,
     "ReservedVRAMSetter": ReservedVRAMSetter,
     "TextEncoderRelease": TextEncoderRelease,
-    "Florence2Plus": Florence2Plus,
     "PromptGallery": PromptGallery,
     "TypeDesigner": TypeDesigner,
     "PromptReplace": PromptReplace,
@@ -115,6 +110,7 @@ NODE_CLASS_MAPPINGS = {
     "LMStudioNode": LMStudioNode,
     "GroupSwitchManager": GroupSwitchManager,
     "MultimediaAdvancedLoader": MultimediaAdvancedLoader,
+    "LoraStackLoader": LoraStackLoader,
     "VideoPreview": VideoPreview,
     "ImageIndexer": ImageIndexer,
 }
@@ -125,17 +121,15 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ImageEditingPresets": "Image Editing Presets",
     "SystemPromptLoader": "System Prompt Loader",
     "MultiLineTextNode": "Multi Line Text Node",
-    "TextCombinerNode": "Text Combiner Node",
+    "PromptCombiner": "Prompt Combiner",
     "TextMergerNode": "Text Merger Node",
     "TextModifier": "Text Modifier",
     "TextExtractor": "Text Extractor",
-    "TriggerWordMerger": "Trigger Word Merger",
     "TextSwitchDualMode": "Text Switch Dual Mode",
     "PriorityTextSwitch": "Priority Text Switch",
     "ShowAny": "Show Any",
     "MultiPlatformTranslate": "Multi Platform Translate",
     "PhotographPromptGenerator": "Photograph Prompt Generator",
-    "WanPromptGenerator": "Wan Prompt Generator",
     "ImageScaler": "Image Scaler",
     "ImageSwitchDualMode": "Image Switch Dual Mode",
     "PriorityImageSwitch": "Priority Image Switch",
@@ -162,7 +156,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ResourceCleaner": "Resource Cleaner",
     "ReservedVRAMSetter": "Reserved VRAM Setter",
     "TextEncoderRelease": "Text Encoder Release",
-    "Florence2Plus": "Florence2 Plus",
     "PromptGallery": "Prompt Gallery",
     "TypeDesigner": "Type Designer",
     "PromptReplace": "Prompt Replace",
@@ -173,11 +166,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LMStudioNode": "LM Studio Node",
     "GroupSwitchManager": "Group Switch Manager",
     "MultimediaAdvancedLoader": "Multimedia Loader",
+    "LoraStackLoader": "LoRA Stack Loader",
     "VideoPreview": "Video Preview",
     "ImageIndexer": "Image Indexer",
 }
 
 from . import locale_api
+from . import preset_api
 from .Nodes.ZhiAIApiConfig import ZhiAIApiConfig  # noqa: F401
 
 WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")

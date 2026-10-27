@@ -54,7 +54,7 @@ export const PANEL_TOKENS = {
         inset: "inset 0 2px 6px rgba(2, 6, 23, 0.40)",
     },
     motion: { fast: "140ms", base: "220ms", slow: "320ms", easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
-    font: "PingFang SC, Source Han Sans SC, Noto Sans, 'Microsoft YaHei', sans-serif",
+    font: "'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', sans-serif",
 };
 
 export const PANEL_TITLE_CHIP_BG = "linear-gradient(180deg, rgba(96, 165, 250, 0.30), rgba(59, 130, 246, 0.20))";
@@ -2190,7 +2190,7 @@ export function createPanel(options) {
     const opts = options || {};
     const node = opts.node;
     const layout = Array.isArray(opts.layout) ? opts.layout : [];
-    const minWidth = typeof opts.minWidth === "number" ? opts.minWidth : 550;
+    const minWidth = typeof opts.minWidth === "number" ? opts.minWidth : 367;
     const t = typeof opts.t === "function" ? opts.t : (key) => String(key ?? "");
     const iconFn = typeof opts.icon === "function" ? opts.icon : () => "";
     const getWidget = typeof opts.getWidget === "function"

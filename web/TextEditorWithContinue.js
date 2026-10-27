@@ -1,5 +1,5 @@
 import { app } from "../../../scripts/app.js";
-import { drawNodeHelpButton } from "./node_title_icons.js";
+import { drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 import { ComfyWidgets } from "../../../scripts/widgets.js";
 import { api } from "../../../scripts/api.js";
 
@@ -364,6 +364,7 @@ app.registerExtension({
                     localPos?.[1] >= iconY &&
                     localPos?.[1] <= iconY + helpIconSize
                 ) {
+                    hideTitleTip();
                     toggleHelp(this);
                     return true;
                 }
@@ -383,6 +384,7 @@ app.registerExtension({
                     this.__textEditorHelpHovered = hovered;
                     this.setDirtyCanvas(true, true);
                 }
+                titleTipHovered(hovered, getLocale() === "zh" ? "节点帮助" : "Node help", event);
                 return result;
             };
 
@@ -393,6 +395,7 @@ app.registerExtension({
                     this.__textEditorHelpHovered = false;
                     this.setDirtyCanvas(true, true);
                 }
+                hideTitleTip();
                 return result;
             };
 

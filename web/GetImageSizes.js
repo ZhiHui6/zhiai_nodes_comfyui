@@ -105,7 +105,7 @@ app.registerExtension({
             const text = this.__zhi_text || "";
             const lines = String(text).split("\n");
             ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-            ctx.font = "14px sans-serif";
+            ctx.font = "14px 'Microsoft YaHei', 'PingFang SC', sans-serif";
             ctx.textBaseline = "top";
 
             const lineHeight = 18;

@@ -1,5 +1,5 @@
 import { app } from "../../../scripts/app.js";
-import { drawNodeHelpButton } from "./node_title_icons.js";
+import { drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 
 const i18n = {
     zh: {
@@ -91,7 +91,7 @@ function createHelpPopup(description, onClose) {
         -webkit-backdrop-filter: blur(16px);
         position: absolute;
         color: #e2e8f0;
-        font: 13px 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font: 13px "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
         line-height: 1.6;
         padding: 20px 24px 24px 24px;
         border-radius: 16px;
@@ -657,6 +657,7 @@ app.registerExtension({
                     localPos[1] > iconY &&
                     localPos[1] < iconY + iconSize
                 ) {
+                    hideTitleTip();
                     this._imageAspectRatioHelp = !this._imageAspectRatioHelp;
                     return true;
                 }
@@ -675,6 +676,7 @@ app.registerExtension({
                     this._imageAspectRatioHelpHovered = hovered;
                     this.setDirtyCanvas(true, true);
                 }
+                titleTipHovered(hovered, getLocale() === "zh" ? "节点帮助" : "Node help", e);
                 return r;
             };
 
@@ -685,6 +687,7 @@ app.registerExtension({
                     this._imageAspectRatioHelpHovered = false;
                     this.setDirtyCanvas(true, true);
                 }
+                hideTitleTip();
                 return r;
             };
 

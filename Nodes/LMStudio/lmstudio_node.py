@@ -189,7 +189,25 @@ def _check_model_available(endpoint: str, model: str) -> tuple[bool, str | None]
 
     return True, None
 
+_connection_state_logged: bool | None = None
+_connection_log_lock = threading.Lock()
+
+
+def _log_connection_state(ok: bool, base: str) -> None:
+    """仅在连接状态发生变化时打印一条日志，避免重复刷屏。"""
+    global _connection_state_logged
+    with _connection_log_lock:
+        if _connection_state_logged == ok:
+            return
+        _connection_state_logged = ok
+    if ok:
+        print(f"[LMStudio] Connected to LM Studio server ({base}).")
+    else:
+        print(f"[LMStudio] Could not fetch models from {base}. Make sure LM Studio server is running. (提示仅在连接状态变化时打印一次)")
+
+
 def _fetch_models_with_status(endpoint: str) -> tuple[list[str], bool]:
+    global _connection_state_logged
     base = _normalise_base(endpoint)
     timeout = _get_timeout("fetch_models", 5)
 
@@ -202,11 +220,10 @@ def _fetch_models_with_status(endpoint: str) -> tuple[list[str], bool]:
             if "data" in data:
                 ids = [m.get("id", "") for m in data.get("data", []) if m.get("id")]
                 if ids:
+                    _log_connection_state(True, base)
                     return ids, True
-    except urllib.error.URLError as e:
-        print(f"[LMStudio] OpenAI endpoint /v1/models connection failed: {e.reason}")
-    except Exception as e:
-        print(f"[LMStudio] OpenAI endpoint /v1/models error: {e}")
+    except Exception:
+        pass
 
     try:
         req = urllib.request.Request(
@@ -219,13 +236,12 @@ def _fetch_models_with_status(endpoint: str) -> tuple[list[str], bool]:
                     m.get("key", "") for m in data.get("models", []) if m.get("key")
                 ]
                 if keys:
+                    _log_connection_state(True, base)
                     return keys, True
-    except urllib.error.URLError as e:
-        print(f"[LMStudio] Native API /api/v1/models connection failed: {e.reason}")
-    except Exception as e:
-        print(f"[LMStudio] Native API /api/v1/models error: {e}")
+    except Exception:
+        pass
 
-    print(f"[LMStudio] Could not fetch models from {base}. Make sure LM Studio server is running.")
+    _log_connection_state(False, base)
     return [NO_MODELS_FOUND], False
 
 
@@ -234,7 +250,7 @@ _cached_models: list[str] = [NO_MODELS_FOUND]
 _last_refresh_time: float = 0.0
 _last_refresh_ok: bool = False
 _refresh_interval: float = 5.0
-_failure_backoff: float = 30.0
+_failure_backoff: float = 300.0
 _refresh_lock = threading.Lock()
 _refresh_thread = None
 

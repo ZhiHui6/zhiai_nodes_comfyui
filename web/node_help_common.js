@@ -1,6 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { getLocale, zhNodeInfo } from "./zhiai_i18n.js";
-import { drawNodeHelpButton } from "./node_title_icons.js";
+import { drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 
 const HELP_ICON_SIZE = 24;
 const HELP_ICON_MARGIN = 4;
@@ -162,7 +162,7 @@ function createPopup(nodeData) {
         "-webkit-backdrop-filter: blur(16px)",
         "position: fixed",
         "color: #E2E8F0",
-        "font: 13px 'Segoe UI', system-ui, -apple-system, sans-serif",
+        "font: 13px 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', sans-serif",
         "line-height: 1.6",
         "padding: 18px 22px 22px 22px",
         "border-radius: 10px",
@@ -271,6 +271,7 @@ function bindOutsideClose() {
         if (active.popup.contains(event.target)) return;
         if (event.type === "pointerdown" && hitHelp(node, localFromEvent(node, event))) return;
         closePopup();
+        hideTitleTip();
         node._zhaiHelp = false;
         node.setDirtyCanvas?.(true, true);
     };
@@ -308,6 +309,7 @@ function patchNodeType(nodeType, nodeData) {
     nodeType.prototype.onMouseDown = function (e, localPos) {
         const result = onMouseDown?.apply(this, arguments);
         if (hitHelp(this, localPos)) {
+            hideTitleTip();
             if (this._zhaiHelp) {
                 this._zhaiHelp = false;
                 closePopup();
@@ -330,6 +332,7 @@ function patchNodeType(nodeType, nodeData) {
             this._zhaiHelpHovered = hovered;
             this.setDirtyCanvas?.(true, true);
         }
+        titleTipHovered(hovered, t("help"), e);
         return result;
     };
 
@@ -340,6 +343,7 @@ function patchNodeType(nodeType, nodeData) {
             this._zhaiHelpHovered = false;
             this.setDirtyCanvas?.(true, true);
         }
+        hideTitleTip();
         return result;
     };
 

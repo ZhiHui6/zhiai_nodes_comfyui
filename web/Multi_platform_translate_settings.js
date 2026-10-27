@@ -143,7 +143,7 @@ const StyleManager = {
         return `
             <style>
                 #${uniqueId} { 
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif; 
+                    font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif; 
                     -webkit-font-smoothing: antialiased; 
                     -moz-osx-font-smoothing: grayscale; 
                 }

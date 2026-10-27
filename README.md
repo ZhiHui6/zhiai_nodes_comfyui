@@ -8,7 +8,7 @@
 
 ## 📖 项目介绍
 
-这是一个由 **Binity** 精心创建的 ComfyUI 自定义节点工具合集，旨在为用户提供一系列实用、高效的节点，以增强和扩展 ComfyUI 的功能。本节点集包含55个功能节点，涵盖文本处理、提示词优化、图像处理、翻译工具、音乐创作辅助、AI视觉理解、Latent处理等多个方面，为您的 AI 创作提供全方位支持。
+这是一个由 **Binity** 精心创建的 ComfyUI 自定义节点工具合集，旨在为用户提供一系列实用、高效的节点，以增强和扩展 ComfyUI 的功能。本节点集包含56个功能节点，涵盖文本处理、提示词优化、图像处理、翻译工具、音乐创作辅助、AI视觉理解、Latent处理等多个方面，为您的 AI 创作提供全方位支持。
 
 ***如果这个项目对您有帮助，请给我们一个⭐Star！您的支持是我们持续改进的动力。***
 
@@ -23,7 +23,7 @@
 
 - 📝 **全面文本处理**：提供多行文本编辑、文本合并分离、内容提取修改、语言过滤等文本操作节点。
 
-- 🎯 **智能提示词系统**：标签选择器、图像编辑预设、摄影提示词生成器、万相视频提示词生成器等专业的提示词生成工具。
+- 🎯 **智能提示词系统**：标签选择器、图像编辑预设、摄影提示词生成器等专业的提示词生成工具。
 
 - 🖼️ **实用图像工具**：支持多算法图像缩放、智能切换、颜色移除等等。
 
@@ -86,8 +86,8 @@
 </div></td>
 </tr>
 <tr>
-<td><b>提示词合并器(可注释)</b><br><code>TextCombinerNode</code></td>
-<td>合并两个文本输入，并可通过独立的开关控制每个文本的输出，并带注释功能。可用于动态组合不同的提示词部分，灵活构建完整提示。
+<td><b>提示词组合</b><br><code>PromptCombiner</code></td>
+<td>组合两段提示词并输出，内置英文逗号分隔，每段可独立启用或禁用。支持接入 LoRA 堆加载器的 <b>触发词</b> 端口并前置合并到输出。注释通过节点顶部「✎ 注释」按钮编辑，悬停输入框即可查看对应注释。
 
 <br>
 <div align="left">
@@ -199,18 +199,6 @@
 <div align="left">
 <a href="images/Priority Text Switch.jpg" target="_blank">
 <img src="images/Priority Text Switch.jpg" alt="优先级文本切换" width="45%"/>
-</a>
-</div>
-</td>
-</tr>
-<tr>
-<td><b>触发词合并器</b><br><code>TriggerWordMerger</code></td>
-<td>将特定的触发词（Trigger Words）与主文本智能合并，并支持权重控制（例如 <code>(word:1.5)</code>）。适用于添加模型特定的触发词或风格词，并精确控制其影响强度。
-
-<br>
-<div align="left">
-<a href="images/触发词合并器.jpg" target="_blank">
-<img src="images/触发词合并器.jpg" alt="触发词合并器" width="45%"/>
 </a>
 </div>
 </td>
@@ -362,23 +350,6 @@
 </a>
 <a href="images/Photograph Prompt Generator4.jpg" target="_blank">
 <img src="images/Photograph Prompt Generator4.jpg" alt="摄影提示词生成器" width="45%"/>
-</a>
-</div>
-</td>
-</tr>
-<tr>
-<td><b>万相视频提示词生成器</b><br><code>WanPromptGenerator</code></td>
-<td>
-
-基于万相2.2官方文档编写的全能型提示词生成器，支持自定义和预设两种组合方法，涵盖运镜、场景、光线、构图等17个维度的专业视频提示词生成。
-
-<b>特点</b>：
-- <b>双模式切换</b>：支持自定义组合和预设组合模式，通过开关按钮一键切换
-- <b>多维度选择</b>：涵盖主体类型、场景类型、光源类型、光线类型、时间段、景别、构图、镜头焦段、机位角度、镜头类型、色调、运镜方式、人物情绪、运动类型、视觉风格、特效镜头、动作姿势17个专业维度
-
-<div align="left">
-<a href="images/万相视频提示词生成器.jpg" target="_blank">
-<img src="images/万相视频提示词生成器.jpg" alt="万相视频提示词生成器" width="45%"/>
 </a>
 </div>
 </td>
@@ -793,6 +764,21 @@
 
 </td>
 </tr>
+<tr>
+<td><b>LoRA 堆加载器</b><br><code>LoraStackLoader</code></td>
+<td>
+
+以列表方式管理多个 LoRA，按行顺序依次叠加到 MODEL。
+
+<b>核心功能</b>：
+- <b>行内管理</b>：拖动排序、启用/禁用、◀▶ 调强度、行内更换模型、删除
+- <b>模型选择器</b>：搜索、缩略图与大图预览，无预览图时显示占位
+- <b>预置触发词</b>：每行「更多设置」内填写，随工作流保存、可一键复制，不输出端口
+- <b>缓存策略全自动</b>：有效 LoRA 集合稳定时复用官方单槽缓存；集合变化时当次不缓存；同一 LoRA 重复出现时本次运行内只读取一次
+- <b>官方等价</b>：逐行走 <code>get_full_path_or_raise</code> → <code>load_torch_file</code> → <code>load_lora_for_models</code>，MODEL 输出与官方 LoraLoader 串联一致
+
+</td>
+</tr>
 </table>
 
 ### 🤖 AI 助手节点
@@ -829,34 +815,6 @@
 <div align="left">
 <a href="images/LLM额外选项.jpg" target="_blank">
 <img src="images/LLM额外选项.jpg" alt="LLM Extra Options" width="45%"/>
-</a>
-</div>
-</td>
-</tr>
-<tr>
-<td><b>Florence2 Plus</b><br><code>Florence2Plus</code></td>
-<td>
-基于微软Florence-2视觉理解模型的专业图像分析节点，支持多种任务类型和批量处理功能。
-
-<b>核心特性</b>：
-- <b>多模型支持</b>：支持Microsoft Florence-2基础和大型模型，以及MiaoshouAI PromptGen系列
-- <b>丰富任务类型</b>：支持标题生成、详细描述、标签生成、混合模式、分析模式等7种任务
-- <b>批量处理</b>：支持单张图片、多张图片和整个文件夹的批量处理
-- <b>性能优化</b>：支持fp16/bf16/fp32精度，flash_attention_2/sdpa/eager注意力机制
-- <b>智能内存管理</b>：提供卸载到CPU、完全卸载、保持加载三种内存管理模式
-
-<b>使用建议</b>：
-- 基础任务使用Microsoft模型，复杂任务使用MiaoshouAI PromptGen模型
-- 显存充足时使用bf16获得最佳质量，有限时使用fp16平衡性能
-- 根据使用频率选择合适的内存管理模式
-
-<br>
-<div align="left">
-<a href="images/Florence2 Plus1.jpg" target="_blank">
-<img src="images/Florence2 Plus1.jpg" alt="Florence2 Plus" width="45%"/>
-</a>
-<a href="images/Florence2 Plus2.jpg" target="_blank">
-<img src="images/Florence2 Plus2.jpg" alt="Florence2 Plus" width="45%"/>
 </a>
 </div>
 </td>
@@ -1034,7 +992,6 @@ git clone https://github.com/ZhiHui6/zhiai_nodes_comfyui.git
 - **LLM 平台密钥**：打开 ComfyUI 的「设置」面板 → **ZhiAI** → 点击「📝 API 设置」，即可为 OpenAI、Google、ZhipuAI、DeepSeek、SiliconFlow、MoonshotAI、MiniMax、Alibaba、VolcEngine、Tencent、ModelScope、NVIDIA 以及自定义接口填写 API Key、Base URL 与模型名称，并支持测试连接。标签选择器的 AI 扩写直接读取这套配置（`platform` 选择 auto 时自动挑用可用平台），图像理解在线版的接口配置也与之共用同一份存储。
 - **翻译平台密钥**：在「多平台翻译」节点上点击「⚙️ 配置管理」按钮，分别填写百度、阿里云、有道、智谱AI、谷歌在线的密钥。
 - **LM Studio**：需要本机运行 LM Studio 并开启本地服务器（默认端口 1234），详见上文该节点的「前置要求」。
-- **Florence2 Plus**：首次运行会按所选型号从 HuggingFace 或 ModelScope 下载模型权重，请预留磁盘空间与网络。
 
 ### 📋 依赖项
 
@@ -1048,7 +1005,6 @@ pip install -r requirements.txt
 
 - **opencv-python**：颜色移除、图像旋转工具、视频帧提取器、LM Studio 节点
 - **scikit-image**：色彩匹配
-- **transformers / huggingface_hub / modelscope / timm / einops**：Florence2 Plus
 - **openai**：图像理解在线版
 - **nvidia-ml-py**：预留显存设置器（需要 NVIDIA 驱动）
 - **cryptography**：标签选择器角色提取器内置数据的解密读取

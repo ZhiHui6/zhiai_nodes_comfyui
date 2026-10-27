@@ -2532,7 +2532,7 @@ function createTemplateEditorHelperDialog() {
         background: rgba(0, 0, 0, 0.3);
         color: white;
         font-size: 14px;
-        font-family: 'Courier New', monospace;
+        font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
         outline: none;
         line-height: 1.8;
         overflow-y: auto;
@@ -3471,7 +3471,7 @@ function populateQuickInsertPanel(container) {
         const symbolText = document.createElement('span');
         symbolText.textContent = item.symbol;
         symbolText.style.cssText = `
-            font-family: 'SimSun', 'Songti SC', serif;
+            font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
             font-size: 14px;
             color: #4facfe;
             font-weight: bold;

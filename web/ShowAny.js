@@ -1,7 +1,7 @@
 import { app } from "../../../scripts/app.js";
-import { drawNodeHelpButton } from "./node_title_icons.js";
+import { drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 
-const SA_FONT = "PingFang SC, Source Han Sans SC, Noto Sans, 'Microsoft YaHei', sans-serif";
+const SA_FONT = "'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', sans-serif";
 const SA_TYPE = {
     micro: "11.5px",
     label: "12.5px",
@@ -339,8 +339,8 @@ function renderMarkdown(source) {
     }
 }
 
-const SHOW_ANY_MIN_WIDTH = 520;
-const SHOW_ANY_MIN_HEIGHT = 300;
+const SHOW_ANY_MIN_WIDTH = 347;
+const SHOW_ANY_MIN_HEIGHT = 200;
 
 const SHOW_ANY_CSS = `
 .sa-box {
@@ -527,7 +527,7 @@ function createHelpPopup(description, onClose) {
         -webkit-backdrop-filter: blur(16px);
         position: absolute;
         color: #e2e8f0;
-        font: 13px 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font: 13px "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
         line-height: 1.6;
         padding: 20px 24px 24px 24px;
         border-radius: 16px;
@@ -592,14 +592,33 @@ app.registerExtension({
                 }
             }
 
-            function flashCopyButton(button, labelText, text) {
-                const label = button._label || button;
-                label.textContent = labelText;
-                button.style.borderColor = "#60a5fa";
-                button.style.color = "#60a5fa";
+            // 紧凑型图标：复制 / 成功（对勾）/ 失败（叉）
+            const SA_COPY_ICON = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
+            const SA_OK_ICON = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 12.8 9.8 17.6 19 6.4"/></svg>';
+            const SA_FAIL_ICON = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6.4" y1="6.4" x2="17.6" y2="17.6"/><line x1="17.6" y1="6.4" x2="6.4" y2="17.6"/></svg>';
+
+            function flashCopyButton(button, state) {
+                // state: "ok" | "fail" | "empty"
                 clearTimeout(button._copyFlashTimer);
+                if (state === "ok") {
+                    button.innerHTML = SA_OK_ICON;
+                    button.title = t("copied");
+                    button.style.color = "#34D399";
+                    button.style.borderColor = "rgba(52, 211, 153, 0.5)";
+                } else if (state === "fail") {
+                    button.innerHTML = SA_FAIL_ICON;
+                    button.title = t("copyFailed");
+                    button.style.color = "#F87171";
+                    button.style.borderColor = "rgba(248, 113, 113, 0.5)";
+                } else {
+                    button.innerHTML = SA_FAIL_ICON;
+                    button.title = t("copyEmpty");
+                    button.style.color = "#F87171";
+                    button.style.borderColor = "rgba(248, 113, 113, 0.5)";
+                }
                 button._copyFlashTimer = setTimeout(() => {
-                    label.textContent = text;
+                    button.innerHTML = SA_COPY_ICON;
+                    button.title = t("copy");
                     button.style.color = "#93c5fd";
                     button.style.borderColor = "rgba(96,165,250,0.4)";
                     if (!button.matches(':hover')) {
@@ -671,19 +690,10 @@ app.registerExtension({
 
                 const copyButton = document.createElement("button");
                 copyButton.type = "button";
-                const copyLabel = document.createElement("span");
-                copyLabel.textContent = t("copy");
-                copyLabel.style.cssText = "display:block;line-height:1;";
-                copyButton.appendChild(copyLabel);
-                copyButton._label = copyLabel;
-                copyButton.style.cssText = "margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;height:18px;white-space:nowrap;background:rgba(96,165,250,0.15);color:#93c5fd;border:1px solid rgba(96,165,250,0.4);border-radius:4px;padding:0 6px;font-size:11px;text-align:center;box-sizing:border-box;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;transition:background 0.15s ease,color 0.15s ease,border-color 0.15s ease;";
-                copyButton._syncWidth = () => {
-                    copyButton.style.minWidth = widestInlineWidth(
-                        [t("copy"), t("copied"), t("copyFailed"), t("copyEmpty")],
-                        "font-size:11px;padding:0 6px;border:1px solid transparent;",
-                    ) + "px";
-                };
-                copyButton._syncWidth();
+                // 紧凑型：仅图标，正方形小按钮，状态通过图标与颜色反馈
+                copyButton.innerHTML = SA_COPY_ICON;
+                copyButton.title = t("copy");
+                copyButton.style.cssText = "margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;background:rgba(96,165,250,0.15);color:#93c5fd;border:1px solid rgba(96,165,250,0.4);border-radius:4px;box-sizing:border-box;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;transition:background 0.15s ease,color 0.15s ease,border-color 0.15s ease;";
                 copyButton.addEventListener("mouseenter", () => {
                     if (copyButton._copyFlashTimer) return;
                     copyButton.style.background = "rgba(96,165,250,0.3)";
@@ -697,11 +707,11 @@ app.registerExtension({
                     event.stopPropagation();
                     const text = getCopyText(node);
                     if (!text) {
-                        flashCopyButton(copyButton, t("copyEmpty"), t("copy"));
+                        flashCopyButton(copyButton, "empty");
                         return;
                     }
                     const ok = await copyTextToClipboard(text);
-                    flashCopyButton(copyButton, ok ? t("copied") : t("copyFailed"), t("copy"));
+                    flashCopyButton(copyButton, ok ? "ok" : "fail");
                 });
 
                 footer.appendChild(modeLabel);
@@ -801,9 +811,9 @@ app.registerExtension({
                 const placeholder = node.__showAnyPreview.itemsContainer.querySelector(".sa-empty");
                 if (placeholder) placeholder.textContent = t("emptyPreview");
                 if (!node.__showAnyPreview.copyButton._copyFlashTimer) {
-                    (node.__showAnyPreview.copyButton._label || node.__showAnyPreview.copyButton).textContent = t("copy");
+                    // 紧凑型图标按钮：语言切换时仅更新悬停提示文案
+                    node.__showAnyPreview.copyButton.title = t("copy");
                 }
-                node.__showAnyPreview.copyButton._syncWidth?.();
             }
 
             const onNodeCreated = nodeType.prototype.onNodeCreated;
@@ -927,6 +937,7 @@ app.registerExtension({
                     localPos[1] > iconY &&
                     localPos[1] < iconY + iconSize
                 ) {
+                    hideTitleTip();
                     this._showAnyHelp = !this._showAnyHelp;
                     return true;
                 }
@@ -945,6 +956,7 @@ app.registerExtension({
                     this._showAnyHelpHovered = hovered;
                     this.setDirtyCanvas(true, true);
                 }
+                titleTipHovered(hovered, getLocale() === "zh" ? "节点帮助" : "Node help", e);
                 return r;
             };
 
@@ -955,6 +967,7 @@ app.registerExtension({
                     this._showAnyHelpHovered = false;
                     this.setDirtyCanvas(true, true);
                 }
+                hideTitleTip();
                 return r;
             };
 

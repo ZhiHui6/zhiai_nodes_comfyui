@@ -9,14 +9,14 @@
             "text_output": "文本输出"
         }
     },
-    "TextCombinerNode": {
+    "PromptCombiner": {
         "outputs": {
             "text_output": "文本输出"
         }
     },
     "TextMergerNode": {
         "outputs": {
-            "merged_text": "合并文本"
+            "merged_text": "文本输出"
         }
     },
     "PromptDelete": {
@@ -31,11 +31,6 @@
         }
     },
     "TextExtractor": {
-        "outputs": {
-            "text_output": "文本输出"
-        }
-    },
-    "TriggerWordMerger": {
         "outputs": {
             "text_output": "文本输出"
         }
@@ -148,12 +143,6 @@
             "int": "整数"
         }
     },
-    "WanPromptGenerator": {
-        "outputs": {
-            "source_prompt": "源提示词",
-            "prompt_output": "提示词输出"
-        }
-    },
     "TextEditorWithContinue": {
         "outputs": {
             "text_output": "文本输出"
@@ -243,11 +232,6 @@
             "Reserved(GB)": "预留显存(GB)"
         }
     },
-    "Florence2Plus": {
-        "outputs": {
-            "text": "文本"
-        }
-    },
     "TypeDesigner": {
         "outputs": {
             "prompt_text": "提示词文本"
@@ -306,6 +290,12 @@
     "ImageIndexer": {
         "outputs": {
             "images": "图像（原序透传）"
+        }
+    },
+    "LoraStackLoader": {
+        "outputs": {
+            "model": "模型",
+            "trigger_words": "触发词"
         }
     }
 }

@@ -8,7 +8,7 @@
 
 ## 📖 Project Introduction
 
-This is a ComfyUI custom node tool collection carefully created by **Binity**, designed to provide users with a series of practical and efficient nodes to enhance and extend ComfyUI's functionality. This node collection contains 55 functional nodes, covering text processing, prompt optimization, image processing, translation tools, music creation assistance, AI vision understanding, Latent processing, and other aspects, providing comprehensive support for your AI creation.
+This is a ComfyUI custom node tool collection carefully created by **Binity**, designed to provide users with a series of practical and efficient nodes to enhance and extend ComfyUI's functionality. This node collection contains 56 functional nodes, covering text processing, prompt optimization, image processing, translation tools, music creation assistance, AI vision understanding, Latent processing, and other aspects, providing comprehensive support for your AI creation.
 
 ***If this project helps you, please give us a ⭐Star! Your support is our motivation for continuous improvement.***
 
@@ -86,8 +86,8 @@ This node collection contains numerous nodes with different functionalities, div
 </div></td>
 </tr>
 <tr>
-<td><b>Prompt Merger (with comments)</b><br><code>TextCombinerNode</code></td>
-<td>Merges two text inputs, with independent switches to control the output of each text, and includes comment functionality. Can be used to dynamically combine different prompt parts, flexibly building complete prompts.
+<td><b>Prompt Combiner</b><br><code>PromptCombiner</code></td>
+<td>Combines two prompts with a built-in English comma, each independently enable-able. Supports connecting the LoRA Stack Loader's <b>trigger_words</b> output, which is prepended to the combined result. Comments are edited via the node-top "✎ 注释" button and shown as hover tips on the inputs.
 
 <br>
 <div align="left">
@@ -199,18 +199,6 @@ This node collection contains numerous nodes with different functionalities, div
 <div align="left">
 <a href="images/Priority Text Switch.jpg" target="_blank">
 <img src="images/Priority Text Switch.jpg" alt="Priority Text Switch" width="45%"/>
-</a>
-</div>
-</td>
-</tr>
-<tr>
-<td><b>Trigger Word Merger</b><br><code>TriggerWordMerger</code></td>
-<td>Intelligently merges specific trigger words with the main text, supporting weight control (e.g., <code>(word:1.5)</code>). Suitable for adding model-specific trigger words or style words and precisely controlling their influence strength.
-
-<br>
-<div align="left">
-<a href="images/触发词合并器.jpg" target="_blank">
-<img src="images/触发词合并器.jpg" alt="Trigger Word Merger" width="45%"/>
 </a>
 </div>
 </td>
@@ -349,23 +337,6 @@ Professional photography prompt generator with 32 customizable dimensions (camer
 </a>
 <a href="images/Photograph Prompt Generator3.jpg" target="_blank">
 <img src="images/Photograph Prompt Generator3.jpg" alt="Photography Prompt Generator" width="45%"/>
-</a>
-</div>
-</td>
-</tr>
-<tr>
-<td><b>WanXiang Video Prompt Generator</b><br><code>WanPromptGenerator</code></td>
-<td>
-
-A comprehensive prompt generator written based on WanXiang 2.2 official documentation, supporting both custom and preset combination methods, covering 17 professional dimensions of video prompts including camera movement, scenes, lighting, and composition.
-
-<b>Features</b>:
-- <b>Dual Mode Switching</b>: Supports custom combination and preset combination modes, switchable with one click
-- <b>Multi-dimensional Selection</b>: Covers 17 professional dimensions including subject type, scene type, light source type, light type, time period, shot size, composition, lens focal length, camera angle, lens type, color tone, camera movement, character emotion, motion type, visual style, special effects shots, and action poses
-
-<div align="left">
-<a href="images/万相视频提示词生成器.jpg" target="_blank">
-<img src="images/万相视频提示词生成器.jpg" alt="WanXiang Video Prompt Generator" width="45%"/>
 </a>
 </div>
 </td>
@@ -788,6 +759,21 @@ Browse the images, videos and audio in the `input` directory as a thumbnail grid
 
 </td>
 </tr>
+<tr>
+<td><b>LoRA Stack Loader</b><br><code>LoraStackLoader</code></td>
+<td>
+
+Manage several LoRAs as a list and apply them in row order to MODEL.
+
+<b>Core Features</b>:
+- <b>Row Management</b>: drag to reorder, enable/disable, ◀▶ strength steps, replace a model inline, delete a row
+- <b>Model Picker</b>: search, thumbnails and a large preview, with a placeholder when no preview exists
+- <b>Trigger Words</b>: each row stores preset trigger words under More settings; saved with the workflow, copyable, and never exposed as an output port
+- <b>Fully Automatic Caching</b>: reuses the official single-slot cache while the effective LoRA set is stable; a changed set runs uncached for that execution; a repeated LoRA is read once per run
+- <b>Official Equivalence</b>: every row goes through <code>get_full_path_or_raise</code> → <code>load_torch_file</code> → <code>load_lora_for_models</code>, matching the MODEL output of chained official LoraLoader nodes
+
+</td>
+</tr>
 </table>
 
 ### 🤖 AI Assistant Nodes
@@ -824,34 +810,6 @@ Provides detailed output control options for LLM nodes, including advanced confi
 <div align="left">
 <a href="images/LLM额外选项.jpg" target="_blank">
 <img src="images/LLM额外选项.jpg" alt="LLM Extra Options" width="45%"/>
-</a>
-</div>
-</td>
-</tr>
-<tr>
-<td><b>Florence2 Plus</b><br><code>Florence2Plus</code></td>
-<td>
-Professional image analysis node based on Microsoft's Florence-2 vision understanding model, supporting multiple task types and batch processing functionality.
-
-<b>Core Features</b>:
-- <b>Multi-Model Support</b>: Supports Microsoft Florence-2 base and large models, as well as MiaoshouAI PromptGen series
-- <b>Rich Task Types</b>: Supports 7 tasks including title generation, detailed description, tag generation, mixed mode, and analysis mode
-- <b>Batch Processing</b>: Supports single image, multiple images, and entire folder batch processing
-- <b>Performance Optimization</b>: Supports fp16/bf16/fp32 precision, flash_attention_2/sdpa/eager attention mechanisms
-- <b>Intelligent Memory Management</b>: Provides three memory management modes: unload to CPU, full unload, and keep loaded
-
-<b>Usage Recommendations</b>:
-- Use Microsoft models for basic tasks, MiaoshouAI PromptGen models for complex tasks
-- Use bf16 for best quality with sufficient VRAM, fp16 for balanced performance with limited VRAM
-- Choose appropriate memory management mode based on usage frequency
-
-<br>
-<div align="left">
-<a href="images/Florence2 Plus1.jpg" target="_blank">
-<img src="images/Florence2 Plus1.jpg" alt="Florence2 Plus" width="45%"/>
-</a>
-<a href="images/Florence2 Plus2.jpg" target="_blank">
-<img src="images/Florence2 Plus2.jpg" alt="Florence2 Plus" width="45%"/>
 </a>
 </div>
 </td>
@@ -1030,7 +988,6 @@ After installation every node sits under the **Zhi.AI** top-level category of th
 - **LLM platform keys**: open the ComfyUI **Settings** panel → **ZhiAI** → click "📝 API Settings" to fill in API Key, Base URL and model name for OpenAI, Google, ZhipuAI, DeepSeek, SiliconFlow, MoonshotAI, MiniMax, Alibaba, VolcEngine, Tencent, ModelScope, NVIDIA and any custom endpoint, with a connection test included. The Tag Selector's AI expansion reads this configuration directly (`platform` set to auto picks whichever profile is available), and Image Understanding Online shares the same storage for its endpoint profiles.
 - **Translation keys**: click the "⚙️ Config Management" button on the Multi-Platform Translation node to enter the credentials of Baidu, Alibaba Cloud, Youdao, Zhipu AI and Google separately.
 - **LM Studio**: run LM Studio locally with its server enabled (default port 1234); see the Prerequisites of that node above.
-- **Florence2 Plus**: downloads the model weights of the selected checkpoint from HuggingFace or ModelScope on first run, so allow disk space and network.
 
 ### 📋 Dependencies
 
@@ -1044,7 +1001,6 @@ What each dependency is used for:
 
 - **opencv-python**: Color Removal, Image Rotate Tool, Video Frame Extractor, LM Studio Node
 - **scikit-image**: Color Match To Reference
-- **transformers / huggingface_hub / modelscope / timm / einops**: Florence2 Plus
 - **openai**: Image Understanding Online
 - **nvidia-ml-py**: Reserved VRAM Setter (requires an NVIDIA driver)
 - **cryptography**: decryption of the built-in data pack used by the Tag Selector character extractor

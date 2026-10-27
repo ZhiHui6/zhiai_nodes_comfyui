@@ -1,5 +1,5 @@
 import { app } from "/scripts/app.js";
-import { drawNodeHelpButton } from "./node_title_icons.js";
+import { drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 import { api } from "/scripts/api.js";
 import { i18n } from "./TagSelector/i18n/index.js";
 import { tagI18n } from "./TagSelector/i18n/tags.js";
@@ -391,7 +391,7 @@ function getDescriptionHTML() {
 }
 
 function createHelpPopup(description, onClose) {
-    const docElement = DOM.div(`background: linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.98) 100%); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); position: absolute; color: #e2e8f0; font: 13px 'Segoe UI', system-ui, -apple-system, sans-serif; line-height: 1.6; padding: 20px 24px 24px 24px; border-radius: 16px; border: 1px solid rgba(99,179,237,0.3); z-index: 1000; overflow: hidden; max-width: 560px; max-height: 600px; min-width: 400px; box-shadow: 0 0 40px rgba(59,130,246,0.15), 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);`);
+    const docElement = DOM.div(`background: linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.98) 100%); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); position: absolute; color: #e2e8f0; font: 13px "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif; line-height: 1.6; padding: 20px 24px 24px 24px; border-radius: 16px; border: 1px solid rgba(99,179,237,0.3); z-index: 1000; overflow: hidden; max-width: 560px; max-height: 600px; min-width: 400px; box-shadow: 0 0 40px rgba(59,130,246,0.15), 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);`);
 
     docElement.innerHTML = `<div style="overflow-y:auto;max-height:540px;padding-right:8px;scrollbar-width:thin;scrollbar-color:rgba(96,165,250,0.25) transparent;">${description}</div>`;
 
@@ -661,6 +661,7 @@ app.registerExtension({
                     localPos[1] > iconY &&
                     localPos[1] < iconY + iconSize
                 ) {
+                    hideTitleTip();
                     this._tagSelectorHelp = !this._tagSelectorHelp;
                     return true;
                 }
@@ -679,6 +680,7 @@ app.registerExtension({
                     this._tagSelectorHelpHovered = hovered;
                     this.setDirtyCanvas(true, true);
                 }
+                titleTipHovered(hovered, getLocale() === "zh" ? "节点帮助" : "Node help", e);
                 return r;
             };
 
@@ -689,6 +691,7 @@ app.registerExtension({
                     this._tagSelectorHelpHovered = false;
                     this.setDirtyCanvas(true, true);
                 }
+                hideTitleTip();
                 return r;
             };
 
@@ -2982,7 +2985,7 @@ function createTagSelectorDialog() {
     const left = (screenWidth - finalWidth) / 2;
     const top = (screenHeight - finalHeight) / 2;
 
-    dialog.style.cssText = `position: fixed; top: ${top}px; left: ${left}px; width: ${finalWidth}px; height: ${finalHeight}px; min-width: 800px; min-height: 600px; background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%); border: 2px solid rgb(19, 101, 201); border-radius: 16px; box-shadow: none; z-index: 10001; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow: hidden; backdrop-filter: blur(20px);`;
+    dialog.style.cssText = `position: fixed; top: ${top}px; left: ${left}px; width: ${finalWidth}px; height: ${finalHeight}px; min-width: 800px; min-height: 600px; background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%); border: 2px solid rgb(19, 101, 201); border-radius: 16px; box-shadow: none; z-index: 10001; display: flex; flex-direction: column; font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif; overflow: hidden; backdrop-filter: blur(20px);`;
 
     const header = DOM.div(`background:rgb(34, 77, 141); padding: 6px 4px; display: flex; align-items: center; justify-content: space-between; border-radius: 16px 16px 0 0; user-select: none; gap: 16px;`);
 
@@ -3373,7 +3376,7 @@ function createTagSelectorDialog() {
         titleBar.appendChild(closeButton);
 
         previewTextarea = document.createElement('textarea');
-        previewTextarea.style.cssText = `width: 100%; height: 350px; background: rgba(15,23,42,0.4); border: 1px solid rgba(59,130,246,0.4); border-radius: 8px; padding: 12px; color: white; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; resize: none; outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);`;
+        previewTextarea.style.cssText = `width: 100%; height: 350px; background: rgba(15,23,42,0.4); border: 1px solid rgba(59,130,246,0.4); border-radius: 8px; padding: 12px; color: white; font-size: 14px; font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif; resize: none; outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);`;
 
         previewTextarea.addEventListener('input', () => {
             contentInput.value = previewTextarea.value;
@@ -9105,7 +9108,7 @@ function createTagManagementForm(tagToEdit = null) {
     const contentTextarea = document.createElement('textarea');
     contentTextarea.placeholder = $t('enterTagContent');
     contentTextarea.value = tagToEdit?.value || '';
-    contentTextarea.style.cssText = `width: 100%; padding: 10px; border: 1px solid rgba(148,163,184,0.25); border-radius: 6px; background: rgba(15,23,42,0.8); color: #e2e8f0; font-size: 14px; resize: none; flex: 1; min-height: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; outline: none; transition: all 0.2s;`;
+    contentTextarea.style.cssText = `width: 100%; padding: 10px; border: 1px solid rgba(148,163,184,0.25); border-radius: 6px; background: rgba(15,23,42,0.8); color: #e2e8f0; font-size: 14px; resize: none; flex: 1; min-height: 0; font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif; outline: none; transition: all 0.2s;`;
     contentTextarea.addEventListener('focus', () => {
         contentTextarea.style.borderColor = '#60a5fa';
         contentTextarea.style.boxShadow = '0 0 0 2px rgba(96,165,250,0.15)';
@@ -10042,7 +10045,7 @@ const SELECTED_TAG_STYLES = {
     tagElement: 'background: linear-gradient(135deg, #4a9eff 0%, #1e88e5 100%); color: #fff; padding: 3px 8px; border-radius: 6px; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; max-width: 200px; min-width: 90px; justify-content: space-between; margin: 0 0 2px 0; box-shadow: 0 2px 4px rgba(74,158,255,0.4), 0 1px 2px rgba(74,158,255,0.2); border: 1px solid rgba(30,136,229,0.8); transition: all 0.3s ease;',
     tagText: 'flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;',
     weightDisplay: 'font-size: 10px; background: rgba(255,255,255,0.2); padding: 1px 4px; border-radius: 3px; min-width: 10px; text-align: center; cursor: pointer; user-select: none;',
-    removeBtn: 'font-size: 8px; font-family: "SimHei", "黑体", sans-serif; font-weight: bold; cursor: pointer; opacity: 0.8; background-color: #3b7ddd; color: white; border-radius: 50%; width: 14px; height: 14px; min-width: 14px; min-height: 14px; display: flex; align-items: center; justify-content: center; transition: background-color 0.2s; line-height: 1; text-align: center; padding: 0; margin: 0; transform: translate(0, 0); flex-shrink: 0; box-sizing: border-box;',
+    removeBtn: 'font-size: 8px; font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif; font-weight: bold; cursor: pointer; opacity: 0.8; background-color: #3b7ddd; color: white; border-radius: 50%; width: 14px; height: 14px; min-width: 14px; min-height: 14px; display: flex; align-items: center; justify-content: center; transition: background-color 0.2s; line-height: 1; text-align: center; padding: 0; margin: 0; transform: translate(0, 0); flex-shrink: 0; box-sizing: border-box;',
     weightControl: 'display: none; position: absolute; top: 0; left: 0; right: 26px; height: 100%; align-items: center; justify-content: center; background: rgba(74,158,255,0.95); border-radius: 6px; z-index: 10; opacity: 0; transition: opacity 0.2s ease;',
     weightEditor: 'display: flex; align-items: center; background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); border: 1px solid #4a9eff; border-radius: 4px; overflow: hidden; height: 15px; box-shadow: 0 2px 8px rgba(74,158,255,0.4);',
     weightBtn: 'font-size: 11px; font-weight: bold; cursor: pointer; color: #fff; width: 15px; height: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s;',

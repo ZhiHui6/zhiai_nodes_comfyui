@@ -23,30 +23,24 @@
             }
         }
     },
-    "TextCombinerNode": {
-        "display_name": "文本组合器",
-        "description": "按指定分隔符把两段文本拼成一段输出，两段可各自启用或禁用。",
+    "PromptCombiner": {
+        "display_name": "提示词组合",
+        "description": "组合两段提示词（内置英文逗号分隔），可选接入 LoRA 触发词并前置合并；注释通过节点顶部按钮编辑，悬停输入框可查看。",
         "inputs": {
-            "prompt1_comment": {
-                "name": "提示词1注释"
-            },
             "enable_prompt1": {
                 "name": "启用提示词1"
-            },
-            "prompt2_comment": {
-                "name": "提示词2注释"
-            },
-            "enable_prompt2": {
-                "name": "启用提示词2"
-            },
-            "separator": {
-                "name": "分隔符"
             },
             "prompt1": {
                 "name": "提示词1"
             },
+            "enable_prompt2": {
+                "name": "启用提示词2"
+            },
             "prompt2": {
                 "name": "提示词2"
+            },
+            "trigger_words": {
+                "name": "触发词"
             }
         }
     },
@@ -200,24 +194,6 @@
         "inputs": {
             "extraction_type": {
                 "name": "提取类型"
-            },
-            "text_input": {
-                "name": "文本输入"
-            }
-        }
-    },
-    "TriggerWordMerger": {
-        "display_name": "触发词合并器",
-        "description": "把触发词并入文本，可自动加括号与权重值。",
-        "inputs": {
-            "trigger_word": {
-                "name": "触发词"
-            },
-            "add_weight": {
-                "name": "添加权重"
-            },
-            "weight_value": {
-                "name": "权重值"
             },
             "text_input": {
                 "name": "文本输入"
@@ -953,81 +929,6 @@
             }
         }
     },
-    "WanPromptGenerator": {
-        "display_name": "万相视频提示词生成器",
-        "description": "从运镜、场景、光线、构图等 17 个维度组合出专业视频提示词。",
-        "inputs": {
-            "enable_node": {
-                "name": "启用节点"
-            },
-            "subject_type": {
-                "name": "主体类型"
-            },
-            "character_emotion": {
-                "name": "角色情感"
-            },
-            "action_pose": {
-                "name": "动作姿态"
-            },
-            "scene_type": {
-                "name": "场景类型"
-            },
-            "light_source": {
-                "name": "光源"
-            },
-            "light_type": {
-                "name": "光线类型"
-            },
-            "time_period": {
-                "name": "时间段"
-            },
-            "shot_type": {
-                "name": "镜头类型"
-            },
-            "composition": {
-                "name": "构图"
-            },
-            "lens_focal_length": {
-                "name": "镜头焦距"
-            },
-            "camera_angle": {
-                "name": "相机角度"
-            },
-            "lens_type": {
-                "name": "镜头类型"
-            },
-            "color_tone": {
-                "name": "色调"
-            },
-            "camera_movement": {
-                "name": "相机运动"
-            },
-            "motion_type": {
-                "name": "运动类型"
-            },
-            "visual_style": {
-                "name": "视觉风格"
-            },
-            "special_effect": {
-                "name": "特殊效果"
-            },
-            "preset_combination": {
-                "name": "预设组合"
-            },
-            "add_prefix": {
-                "name": "添加前缀"
-            },
-            "model_brand": {
-                "name": "模型品牌"
-            },
-            "supplementary_text": {
-                "name": "补充文本"
-            },
-            "custom_system_prompt": {
-                "name": "自定义系统提示"
-            }
-        }
-    },
     "PreviewOrCompareImages": {
         "display_name": "图像预览/对比",
         "description": "预览单张图像或并排对比两张，悬停时可拖动分割线。",
@@ -1436,51 +1337,6 @@
             }
         }
     },
-    "Florence2Plus": {
-        "display_name": "Florence2 增强版",
-        "description": "基于 Florence-2 做图像描述与分析，可选任务模式、精度与注意力机制。",
-        "inputs": {
-            "model_name": {
-                "name": "模型名称"
-            },
-            "precision": {
-                "name": "精度"
-            },
-            "attention": {
-                "name": "注意力机制"
-            },
-            "unload_mode": {
-                "name": "卸载方式"
-            },
-            "task": {
-                "name": "任务类型"
-            },
-            "batch_mode": {
-                "name": "批量模式"
-            },
-            "batch_directory": {
-                "name": "批量文件夹路径"
-            },
-            "seed": {
-                "name": "随机种子"
-            },
-            "max_new_tokens": {
-                "name": "最大生成长度"
-            },
-            "num_beams": {
-                "name": "波束搜索数量"
-            },
-            "do_sample": {
-                "name": "启用采样"
-            },
-            "manage_models": {
-                "name": "模型管理"
-            },
-            "image": {
-                "name": "图像"
-            }
-        }
-    },
     "TypeDesigner": {
         "display_name": "字体设计师",
         "description": "浏览并选择 3D、霓虹、金属等字体艺术风格，自动给出对应提示词。",
@@ -1752,6 +1608,26 @@
         "inputs": {
             "images": {
                 "name": "图像"
+            }
+        }
+    },
+    "LoraStackLoader": {
+        "display_name": "LoRA 堆加载器",
+        "description": "按行顺序把多个 LoRA 叠加到模型：勾选行首复选框启用或禁用，拖左侧把手排序，点名称更换模型；权重可用两侧箭头按 0.05 步进，也可直接输入（-10 到 10）；「更多设置」里能填写触发词、一键复制，还可把当前整套结构存为配方随时载入。触发词输出为启用行的逗号拼接字符串。",
+        "inputs": {
+            "model": {
+                "name": "模型"
+            },
+            "lora_rows": {
+                "name": "LoRA 列表"
+            }
+        },
+        "outputs": {
+            "model": {
+                "name": "模型"
+            },
+            "trigger_words": {
+                "name": "触发词"
             }
         }
     }

@@ -1,10 +1,5 @@
 opencv-python
-huggingface_hub
-modelscope
-transformers>=4.57.0
 openai>=1.0.0
-timm>=0.9.16
 nvidia-ml-py
-einops
 cryptography
 scikit-image

@@ -1,3 +1,5 @@
+import { app } from "/scripts/app.js";
+
 export const NODE_TITLE_GLYPH = { idle: "#A1C4FA", active: "#D6E4FF" };
 
 const BOX = 2;
@@ -148,4 +150,132 @@ export function drawNodeTitleAction(ctx, kind, active) {
     ctx.lineWidth = STROKE / ACTION_SCALE;
     ctx.stroke(actionPath(kind));
     ctx.restore();
+}
+
+// ===== 标题栏图标悬停提示（画布图标无法使用 DOM title，使用共享浮层） =====
+
+const TIP_STYLE =
+    "position:fixed;z-index:10060;box-sizing:border-box;width:max-content;max-width:320px;" +
+    "padding:6px 10px;border-radius:6px;background:rgba(5, 11, 22, 0.92);" +
+    "border:1px solid rgba(147, 197, 253, 0.42);box-shadow:0 4px 14px rgba(2, 6, 23, 0.35);" +
+    "backdrop-filter:blur(10px) saturate(1.3);-webkit-backdrop-filter:blur(10px) saturate(1.3);" +
+    "color:#F2FAFF;font-family:'Microsoft YaHei','微软雅黑','PingFang SC','Hiragino Sans GB',sans-serif;" +
+    "font-size:12px;line-height:1.5;letter-spacing:0.01em;overflow-wrap:anywhere;pointer-events:none;" +
+    "opacity:0;transform:translateY(3px);" +
+    "transition:opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),transform 140ms cubic-bezier(0.22, 1, 0.36, 1);";
+
+let _titleTipEl = null;
+let _titleTipText = null;
+// 记录最近一次"悬停显示"所属的鼠标事件：同一节点的多个标题图标各自独立处理
+// 鼠标事件（如帮助"?"与注释"✎"），未悬停的一方会请求隐藏——若该请求来自
+// 同一次鼠标事件，则说明另一方刚刚显示过提示，不应取消。
+let _lastHoverEvent = null;
+
+// 前端会在鼠标悬停节点标题栏时弹出"节点描述"浮层（NodeTooltip 组件，class=node-tooltip），
+// 会盖住我们的图标提示。我们的图标提示显示期间临时抑制它。
+const NODE_TIP_SUPPRESS_STYLE_ID = "zhiai-suppress-node-tooltip";
+function setNodeTooltipSuppressed(on) {
+    let el = document.getElementById(NODE_TIP_SUPPRESS_STYLE_ID);
+    if (on && !el) {
+        el = document.createElement("style");
+        el.id = NODE_TIP_SUPPRESS_STYLE_ID;
+        el.textContent = ".node-tooltip{display:none !important;}";
+        document.head.appendChild(el);
+    } else if (!on && el) {
+        el.remove();
+    }
+}
+
+// 全局永久禁用悬停节点时显示的"节点描述"浮层（ComfyUI NodeTooltip，class=node-tooltip）
+//对所有节点生效，与下方临时抑制逻辑相互独立、永不移除
+const NODE_TIP_DISABLE_STYLE_ID = "zhiai-disable-node-tooltip";
+if (typeof document !== "undefined" && !document.getElementById(NODE_TIP_DISABLE_STYLE_ID)) {
+    const disableEl = document.createElement("style");
+    disableEl.id = NODE_TIP_DISABLE_STYLE_ID;
+    disableEl.textContent = ".node-tooltip{display:none !important;}";
+    document.head.appendChild(disableEl);
+}
+
+export function hideTitleTip() {
+    if (_tipTimer) {
+        clearTimeout(_tipTimer);
+        _tipTimer = null;
+    }
+    if (_titleTipEl) {
+        _titleTipEl.remove();
+        _titleTipEl = null;
+        _titleTipText = null;
+    }
+    _lastHoverEvent = null;
+    setNodeTooltipSuppressed(false);
+}
+
+// 悬停提示统一延迟 800ms
+const TIP_DELAY_DEFAULT = 800;
+function getTipDelay() {
+    return TIP_DELAY_DEFAULT;
+}
+
+let _tipTimer = null;
+function armTitleTip(text, event) {
+    if (_tipTimer) clearTimeout(_tipTimer);
+    const x = event.clientX;
+    const y = event.clientY;
+    _tipTimer = window.setTimeout(() => {
+        _tipTimer = null;
+        showTitleTip(text, x, y);
+    }, getTipDelay());
+}
+
+export function showTitleTip(text, clientX, clientY) {
+    if (!text) {
+        hideTitleTip();
+        return;
+    }
+    setNodeTooltipSuppressed(true);
+    // 常规 tooltip 行为：仅在实际创建时定位一次，悬停期间不跟随鼠标
+    if (_titleTipEl && _titleTipEl.isConnected) {
+        if (_titleTipText !== text) {
+            _titleTipEl.textContent = text;
+            _titleTipText = text;
+        }
+        return;
+    }
+    hideTitleTip();
+    _titleTipEl = document.createElement("div");
+    _titleTipEl.style.cssText = TIP_STYLE;
+    _titleTipEl.textContent = text;
+    _titleTipText = text;
+    document.body.appendChild(_titleTipEl);
+    const w = _titleTipEl.offsetWidth || 80;
+    const h = _titleTipEl.offsetHeight || 28;
+    // 弹出在按钮正上方并完全避开按钮：光标处于 24px 的按钮内，
+    // 额外预留 30px 净空保证不压住按钮；顶部放不下时退回下方
+    const x = Math.min(Math.max(8, clientX - w / 2), window.innerWidth - w - 8);
+    let y = clientY - h - 30;
+    if (y < 8) y = Math.min(clientY + 20, window.innerHeight - h - 8);
+    _titleTipEl.style.left = x + "px";
+    _titleTipEl.style.top = y + "px";
+    requestAnimationFrame(() => {
+        if (_titleTipEl) {
+            _titleTipEl.style.opacity = "1";
+            _titleTipEl.style.transform = "translateY(0)";
+        }
+    });
+}
+
+// 悬停状态变化时的便捷入口：
+// - true：按标准延迟（鼠标在图标上停稳后）显示提示，移动会重新计时
+// - false：请求取消/隐藏（同一事件内其他图标已登记悬停时忽略）
+export function titleTipHovered(hovered, text, event) {
+    if (hovered && event && typeof event.clientX === "number") {
+        _lastHoverEvent = event;
+        armTitleTip(text, event);
+        return;
+    }
+    if (event && event === _lastHoverEvent) {
+        // 本次鼠标移动中已有其他标题图标登记悬停，保持现状
+        return;
+    }
+    hideTitleTip();
 }

@@ -1,6 +1,6 @@
 [project]
 name = "zhiai-nodes-comfyui"
-description = "ComfyUI custom nodes collection with 55 nodes: multi-engine translation, text processing, prompt generators, image tools, vision understanding, Florence2 image analysis, LM Studio integration, and more."
+description = "ComfyUI custom nodes collection with 54 nodes: multi-engine translation, text processing, prompt generators, image tools, vision understanding, LM Studio integration, and more."
 version = "2.0.0"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -16,13 +16,8 @@ classifiers = [
 
 dependencies = [
     "opencv-python",
-    "huggingface_hub",
-    "modelscope",
-    "transformers>=4.57.0",
     "openai>=1.0.0",
-    "timm>=0.9.16",
     "nvidia-ml-py",
-    "einops",
     "cryptography",
     "scikit-image",
 ]
