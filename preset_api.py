@@ -11,7 +11,7 @@ from server import PromptServer
 
 PACK_DIR = os.path.dirname(os.path.abspath(__file__))
 PRESET_PATH = os.path.join(PACK_DIR, "config", "lora_presets.json")
-STRENGTH_LIMIT = 10.0
+STRENGTH_LIMIT = 50.0
 NAME_LIMIT = 80
 ROWS_LIMIT = 200
 ID_PATTERN = re.compile(r"^p_[0-9]{14}_[0-9a-f]{4}$")

@@ -766,9 +766,10 @@ Browse the images, videos and audio in the `input` directory as a thumbnail grid
 Manage several LoRAs as a list and apply them in row order to MODEL.
 
 <b>Core Features</b>:
-- <b>Row Management</b>: drag to reorder, enable/disable, ◀▶ strength steps, replace a model inline, delete a row
+- <b>Row Management</b>: drag to reorder, enable/disable, ◀▶ strength steps of 0.05, direct weight input (-50 to 50), click a row to select it, replace a model from the row's More panel, delete a row
 - <b>Model Picker</b>: search, thumbnails and a large preview, with a placeholder when no preview exists
 - <b>Trigger Words</b>: each row stores preset trigger words under More settings; saved with the workflow, copyable, and never exposed as an output port
+- <b>Presets</b>: save the whole stack as a preset and reload it anytime
 - <b>Fully Automatic Caching</b>: reuses the official single-slot cache while the effective LoRA set is stable; a changed set runs uncached for that execution; a repeated LoRA is read once per run
 - <b>Official Equivalence</b>: every row goes through <code>get_full_path_or_raise</code> → <code>load_torch_file</code> → <code>load_lora_for_models</code>, matching the MODEL output of chained official LoraLoader nodes
 

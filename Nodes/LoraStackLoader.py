@@ -79,7 +79,7 @@ class LoraStackLoader:
     FUNCTION = "load"
     RETURN_TYPES = ("MODEL", "STRING")
     RETURN_NAMES = ("model", "trigger_words")
-    DESCRIPTION = "Applies a reorderable stack of LoRAs to MODEL in row order: toggle a row with its checkbox, drag the handle to reorder, click the row name to swap models. Strength steps by 0.05 with the side arrows or accepts direct input (-10 to 10). The More panel holds trigger words and one-click copy, and lets you save the whole stack as a preset for later. Outputs the enabled rows' trigger words joined by commas."
+    DESCRIPTION = "Applies a reorderable stack of LoRAs to MODEL in row order: toggle a row with its checkbox, drag the handle to reorder, click a row to select it, and swap models from the row's More panel. Strength steps by 0.05 with the side arrows or accepts direct input (-50 to 50). The More panel holds trigger words and one-click copy, and lets you save the whole stack as a preset for later. Outputs the enabled rows' trigger words joined by commas."
 
     def __init__(self):
         self.loaded_lora = None
