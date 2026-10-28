@@ -153,7 +153,7 @@ ${desc ? `<h4 style="${STYLE.heading}">${t("overview")}</h4><p style="${STYLE.bo
 <h4 style="${STYLE.heading}">${t("outputs")}</h4>${outputSection(nodeData, zh)}`;
 }
 
-function createPopup(nodeData) {
+export function createHelpPopupElement(contentHtml) {
     const popup = document.createElement("div");
     popup.className = "zhai-node-help";
     popup.style.cssText = [
@@ -175,10 +175,14 @@ function createPopup(nodeData) {
     ].join(";") + ";";
     const scroller = document.createElement("div");
     scroller.style.cssText = "overflow-y:auto;max-height:min(60vh,540px);padding-right:8px;scrollbar-width:thin;scrollbar-color:rgba(147,197,253,0.3) transparent;";
-    scroller.innerHTML = buildHelpHtml(nodeData);
+    scroller.innerHTML = contentHtml;
     popup.appendChild(scroller);
     document.body.appendChild(popup);
     return popup;
+}
+
+function createPopup(nodeData) {
+    return createHelpPopupElement(buildHelpHtml(nodeData));
 }
 
 const active = { node: null, popup: null, locale: null };

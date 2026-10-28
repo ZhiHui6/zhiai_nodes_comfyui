@@ -1,5 +1,7 @@
 import { app } from "/scripts/app.js";
-import { drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
+import { drawNodeHelpButton, drawNodeSettingsButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
+import { createHelpPopupElement } from "./node_help_common.js";
+import { attachMiddleDragPan, watchNodeModeVisual } from "./panel_kit.js";
 
 const i18n = {
     zh: {
@@ -43,23 +45,29 @@ const i18n = {
         matchTitlePlaceholder: "输入标题关键词...",
         matchTitleHelp: "使用逗号分隔多个关键词",
         helpTitle: "组开关管理器",
-        helpDesc: "用于可视化管理工作流中的组开关状态，并配置组之间的联动规则。",
+        helpDesc: "可视化管理工作流中所有组的开关状态，支持筛选、排序与组间联动。",
         helpFeaturesTitle: "功能",
-        helpFeature1: "显示工作流中的所有组及其当前状态",
-        helpFeature2: "点击开关按钮快速启用/禁用组",
-        helpFeature3: "支持按颜色或标题关键词过滤组",
-        helpFeature4: "配置组之间的联动规则（当一个组状态改变时，自动触发其他组的状态变化）",
-        helpFeature5: "支持拖拽排序组列表",
-        helpFeature6: "点击定位按钮快速跳转到组的位置",
-        helpUsageTitle: "使用说明",
-        helpUsage1: "开关按钮：点击可切换组的启用/禁用状态",
-        helpUsage2: "联动按钮：点击配置该组的联动规则",
-        helpUsage3: "定位按钮：点击在画布中定位到该组",
-        helpUsage4: "设置按钮：配置运行模式、匹配模式等选项",
-        helpUsage5: "刷新按钮：手动刷新组列表",
-        helpModeTitle: "运行模式",
-        helpModeDisable: "禁用模式：关闭的组会被禁用（不参与执行）",
-        helpModeBypass: "忽略模式：关闭的组会被忽略（但节点仍会执行）"
+        helpFeatureSummary: "实时列出工作流中的所有组及启用状态，可一键开关、按颜色或标题关键词筛选、拖拽排序，并为组配置联动规则、通过定位按钮快速跳转。",
+        helpUiTitle: "界面操作",
+        helpUiFilterLabel: "颜色筛选",
+        helpUiFilterDesc: "在下拉框选择颜色，仅显示对应颜色的组",
+        helpUiToggleLabel: "开关按钮",
+        helpUiToggleDesc: "切换组的启用/禁用状态，图标高亮表示已启用",
+        helpUiLinkageLabel: "联动按钮",
+        helpUiLinkageDesc: "打开该组的联动规则配置",
+        helpUiNavigateLabel: "定位按钮",
+        helpUiNavigateDesc: "在画布中定位并选中该组",
+        helpSettingsTitle: "设置项",
+        helpSettingModeLabel: "运行模式",
+        helpSettingModeDesc: "组关闭后，组内节点按禁用或旁路方式处理",
+        helpSettingRestrictionLabel: "切换限制",
+        helpSettingRestrictionDesc: "选择“始终一个”后，开启某组会自动关闭其他组",
+        helpSettingMatchLabel: "匹配模式",
+        helpSettingMatchDesc: "按颜色或标题关键词筛选，也可选择不筛选",
+        helpSettingNavigateLabel: "定位指示器",
+        helpSettingNavigateDesc: "控制组条目是否显示定位按钮",
+        helpModeDisable: "禁用模式：组关闭后，组内节点被静音，不参与执行。",
+        helpModeBypass: "忽略模式：组关闭后，组内节点被旁路，不参与计算，连线直接导通传值。"
     },
     en: {
         title: "Group Switch Manager",
@@ -102,23 +110,29 @@ const i18n = {
         matchTitlePlaceholder: "Enter title keywords...",
         matchTitleHelp: "Use commas to separate multiple keywords",
         helpTitle: "Group Switch Manager",
-        helpDesc: "Used to visually manage group on/off states in the workflow and configure linkage rules between groups.",
+        helpDesc: "Visually manage on/off states of all workflow groups, with filtering, sorting and linkage rules.",
         helpFeaturesTitle: "Features",
-        helpFeature1: "Display all groups in the workflow and their current status",
-        helpFeature2: "Click toggle button to quickly enable/disable groups",
-        helpFeature3: "Support filtering groups by color or title keywords",
-        helpFeature4: "Configure linkage rules between groups (when one group's state changes, automatically trigger other groups' state changes)",
-        helpFeature5: "Support drag-and-drop sorting of group list",
-        helpFeature6: "Click navigate button to quickly jump to group's location",
-        helpUsageTitle: "Usage",
-        helpUsage1: "Toggle Button: Click to switch group's enable/disable state",
-        helpUsage2: "Linkage Button: Click to configure linkage rules for this group",
-        helpUsage3: "Navigate Button: Click to locate the group on canvas",
-        helpUsage4: "Settings Button: Configure execution mode, match mode, etc.",
-        helpUsage5: "Refresh Button: Manually refresh group list",
-        helpModeTitle: "Execution Mode",
-        helpModeDisable: "Disable Mode: Disabled groups will be disabled (not participating in execution)",
-        helpModeBypass: "Bypass Mode: Disabled groups will be bypassed (but nodes will still execute)"
+        helpFeatureSummary: "Lists all workflow groups and their states in real time, with one-click toggling, color or keyword filtering, drag-to-reorder, linkage rules between groups, and quick navigation on the canvas.",
+        helpUiTitle: "Controls",
+        helpUiFilterLabel: "Color Filter",
+        helpUiFilterDesc: "Pick a color to show only the matching groups",
+        helpUiToggleLabel: "Toggle Button",
+        helpUiToggleDesc: "Switch the group on or off; a highlighted icon means enabled",
+        helpUiLinkageLabel: "Linkage Button",
+        helpUiLinkageDesc: "Open the linkage rules of this group",
+        helpUiNavigateLabel: "Navigate Button",
+        helpUiNavigateDesc: "Locate and select the group on the canvas",
+        helpSettingsTitle: "Settings",
+        helpSettingModeLabel: "Execution Mode",
+        helpSettingModeDesc: "How the nodes of an off group are handled: disabled or bypassed",
+        helpSettingRestrictionLabel: "Toggle Restriction",
+        helpSettingRestrictionDesc: "With \"Always One\", enabling a group turns off the others",
+        helpSettingMatchLabel: "Match Mode",
+        helpSettingMatchDesc: "Filter by color or title keywords, or show all groups",
+        helpSettingNavigateLabel: "Navigate Indicator",
+        helpSettingNavigateDesc: "Whether the navigate button is shown on group rows",
+        helpModeDisable: "Disable Mode: an off group mutes its nodes, which are skipped during execution.",
+        helpModeBypass: "Bypass Mode: an off group bypasses its nodes; they skip computation and pass data straight through."
     }
 };
 
@@ -151,60 +165,29 @@ function initLocaleWatcher() {
 }
 
 function getDescriptionHTML() {
-    return `<h3 style="margin:0 0 12px 0;color:#60a5fa;font-size:18px;font-weight:600;padding-bottom:8px;border-bottom:1px solid rgba(96, 165, 250, 0.2);letter-spacing:0.2px;">${t('helpTitle')}</h3>
-<p style="margin:0 0 16px 0;color:#e2e8f0;">${t('helpDesc')}</p>
-<h4 style="margin:12px 0 8px 0;color:#38bdf8;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${t('helpFeaturesTitle')}</h4>
-<ul style="margin:0;padding:0;">
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpFeature1')}</li>
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpFeature2')}</li>
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpFeature3')}</li>
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpFeature4')}</li>
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpFeature5')}</li>
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpFeature6')}</li>
-</ul>
-<h4 style="margin:12px 0 8px 0;color:#38bdf8;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${t('helpUsageTitle')}</h4>
-<ul style="margin:0;padding:0;">
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpUsage1')}</li>
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpUsage2')}</li>
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpUsage3')}</li>
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpUsage4')}</li>
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpUsage5')}</li>
-</ul>
-<h4 style="margin:12px 0 8px 0;color:#38bdf8;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${t('helpModeTitle')}</h4>
-<ul style="margin:0;padding:0;">
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpModeDisable')}</li>
-<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpModeBypass')}</li>
-</ul>`;
-}
-
-function createHelpPopup(description, onClose) {
-    const docElement = document.createElement('div');
-    docElement.style.cssText = `
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        position: absolute;
-        color: #e2e8f0;
-        font: 13px "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
-        line-height: 1.6;
-        padding: 20px 24px 24px 24px;
-        border-radius: 16px;
-        border: 1px solid rgba(99, 179, 237, 0.3);
-        z-index: 1000;
-        overflow: hidden;
-        max-width: 560px;
-        max-height: 600px;
-        min-width: 400px;
-        box-shadow: 
-            0 0 40px rgba(59, 130, 246, 0.15),
-            0 20px 60px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    `;
-
-    docElement.innerHTML = `<div style="overflow-y:auto;max-height:540px;padding-right:8px;scrollbar-width:thin;scrollbar-color:rgba(96,165,250,0.3) transparent;">${description}</div>`;
-
-    document.body.appendChild(docElement);
-    return docElement;
+    const heading = (text) => `<h4 style="margin:14px 0 6px 0;color:#60A5FA;font-size:14px;font-weight:600;letter-spacing:0.5px;">${text}</h4>`;
+    const rows = (...keys) => keys.map((key) => `<p style="margin:3px 0;color:#E2E8F0;">${t(key)}</p>`).join("");
+    const entry = (label, desc) => `<p style="margin:4px 0;color:#E2E8F0;"><span style="color:#F2FAFF;font-weight:600;">${label}</span><span style="color:#93A9C4;"> — ${desc}</span></p>`;
+    const entries = (pairs) => pairs.map(([label, desc]) => entry(t(label), t(desc))).join("");
+    return `<h3 style="margin:0 0 4px 0;color:#93C5FD;font-size:18px;font-weight:600;letter-spacing:0.2px;">${t('helpTitle')}</h3>
+<p style="margin:0 0 12px 0;padding-bottom:10px;border-bottom:1px solid rgba(147,197,253,0.2);color:#7C93B0;font-size:12px;">${t('helpDesc')}</p>
+${heading(t('helpFeaturesTitle'))}${rows('helpFeatureSummary')}
+${heading(t('helpUiTitle'))}${entries([
+        ['helpUiFilterLabel', 'helpUiFilterDesc'],
+        ['helpUiToggleLabel', 'helpUiToggleDesc'],
+        ['helpUiLinkageLabel', 'helpUiLinkageDesc'],
+        ['helpUiNavigateLabel', 'helpUiNavigateDesc'],
+    ])}
+${heading(t('helpSettingsTitle'))}${entry(t('helpSettingModeLabel'), t('helpSettingModeDesc'))}
+<div style="margin:2px 0 8px 0;padding-left:10px;">
+<p style="margin:2px 0;color:#93A9C4;font-size:12px;">${t('helpModeDisable')}</p>
+<p style="margin:2px 0;color:#93A9C4;font-size:12px;">${t('helpModeBypass')}</p>
+</div>
+${entries([
+        ['helpSettingRestrictionLabel', 'helpSettingRestrictionDesc'],
+        ['helpSettingMatchLabel', 'helpSettingMatchDesc'],
+        ['helpSettingNavigateLabel', 'helpSettingNavigateDesc'],
+    ])}`;
 }
 
 function reduceNodesDepthFirst(nodeOrNodes, reduceFn, reduceTo) {
@@ -385,6 +368,8 @@ app.registerExtension({
             this.groupKeys = new WeakMap();
             this.groupConfigReferences = new WeakMap();
             this._processingStack = new Set();
+            this._draggedGroup = null;
+            this._gmmDragging = false;
             this.size = [400, 500];
             this._gmmHelp = false;
             this._gmmHelpElement = null;
@@ -438,13 +423,8 @@ app.registerExtension({
                     <div class="gmm-groups-header">
                         <div class="gmm-header-controls">
                             <span class="gmm-mode-indicator" id="gmm-mode-indicator">${t('modeDisable')}</span>
-                            <button class="gmm-settings-button" id="gmm-settings-btn">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-                                </svg>
-                            </button>
                             <button class="gmm-refresh-button" id="gmm-refresh">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="23 4 23 10 17 10"></polyline>
                                     <polyline points="1 20 1 14 7 14"></polyline>
                                     <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
@@ -458,6 +438,8 @@ app.registerExtension({
 
                 this.addDOMWidget("gmm_ui", "div", container);
                 this.customUI = container;
+                watchNodeModeVisual(this, container);
+                attachMiddleDragPan(container);
                 this.bindUIEvents();
                 this.updateModeIndicator();
                 this.updateGroupsList();
@@ -486,14 +468,15 @@ app.registerExtension({
                     height: 100%;
                     display: flex;
                     flex-direction: column;
-                    background: #1e1e2e;
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 8px;
+                    box-sizing: border-box;
+                    background: linear-gradient(180deg, #0e1a2e, #070e1b);
+                    border: 1px solid #2C5080;
+                    border-radius: 10px;
                     overflow: hidden;
                     font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
-                    font-size: 11px;
-                    color: #E0E0E0;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                    font-size: 13.5px;
+                    line-height: 1.5;
+                    color: #DDE9F5;
                 }
 
                 .gmm-content {
@@ -501,23 +484,26 @@ app.registerExtension({
                     display: flex;
                     flex-direction: column;
                     overflow: hidden;
-                    background: rgba(30, 30, 46, 0.5);
+                    background: transparent;
                 }
 
                 .gmm-groups-header {
-                    padding: 6px 10px;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                    height: 20px;
+                    padding: 0 8px;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
                     position: relative;
+                    flex-shrink: 0;
+                    box-sizing: content-box;
+                    background: linear-gradient(180deg, rgba(59, 130, 246, 0.26), rgba(59, 130, 246, 0.08));
                 }
 
                 .gmm-header-controls {
                     position: relative;
                     display: flex;
                     align-items: center;
-                    gap: 8px;
+                    gap: 4px;
                     justify-content: flex-end;
                     flex: 1;
                 }
@@ -530,8 +516,8 @@ app.registerExtension({
                 }
 
                 .gmm-dropdown-label {
-                    font-size: 10px;
-                    color: #B0B0B0;
+                    font-size: 11.5px;
+                    color: #93A9C4;
                     white-space: nowrap;
                     font-weight: 500;
                     width: auto;
@@ -545,31 +531,32 @@ app.registerExtension({
                 }
 
                 .gmm-dropdown-trigger {
-                    background: linear-gradient(145deg, rgba(50, 50, 70, 0.9) 0%, rgba(40, 40, 60, 0.95) 100%);
-                    border: 1px solid rgba(116, 55, 149, 0.5);
+                    background: rgba(4, 11, 22, 0.66);
+                    border: 1px solid rgba(96, 165, 250, 0.18);
                     border-radius: 6px;
-                    padding: 5px 8px;
-                    color: #F0F0F0;
-                    font-size: 10px;
+                    padding: 4px 8px;
+                    color: #DDE9F5;
+                    font-size: 11.5px;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
                     gap: 6px;
-                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+                    transition: border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                color 140ms cubic-bezier(0.22, 1, 0.36, 1);
                 }
 
                 .gmm-dropdown-trigger:hover {
-                    background: linear-gradient(145deg, rgba(60, 60, 85, 0.95) 0%, rgba(50, 50, 75, 1) 100%);
-                    border-color: rgba(139, 75, 168, 0.7);
-                    box-shadow: 0 3px 8px rgba(116, 55, 149, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+                    background: rgba(8, 18, 34, 0.80);
+                    border-color: rgba(147, 197, 253, 0.42);
+                    color: #F2FAFF;
                 }
 
                 .gmm-custom-dropdown.open .gmm-dropdown-trigger {
-                    border-color: rgba(155, 89, 182, 0.9);
-                    background: linear-gradient(145deg, rgba(65, 65, 90, 1) 0%, rgba(55, 55, 80, 1) 100%);
-                    box-shadow: 0 0 0 3px rgba(116, 55, 149, 0.2), 0 4px 12px rgba(116, 55, 149, 0.3);
+                    border-color: #3B82F6;
+                    background: rgba(59, 130, 246, 0.08);
+                    color: #F2FAFF;
                 }
 
                 .gmm-dropdown-text {
@@ -578,18 +565,18 @@ app.registerExtension({
                     text-overflow: ellipsis;
                     white-space: nowrap;
                     font-weight: 500;
-                    letter-spacing: 0.3px;
+                    letter-spacing: 0.01em;
                 }
 
                 .gmm-dropdown-arrow {
                     flex-shrink: 0;
-                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                    color: rgba(200, 180, 220, 0.8);
+                    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+                    color: #93C5FD;
                 }
 
                 .gmm-custom-dropdown.open .gmm-dropdown-arrow {
                     transform: rotate(180deg);
-                    color: rgba(155, 89, 182, 1);
+                    color: #93C5FD;
                 }
 
                 .gmm-dropdown-menu {
@@ -597,20 +584,24 @@ app.registerExtension({
                     top: calc(100% + 4px);
                     left: 0;
                     right: 0;
-                    background: linear-gradient(180deg, rgba(45, 45, 65, 0.98) 0%, rgba(35, 35, 55, 0.99) 100%);
-                    border: 1px solid rgba(116, 55, 149, 0.4);
+                    background: rgba(5, 11, 22, 0.88);
+                    border: 1px solid rgba(147, 197, 253, 0.42);
                     border-radius: 8px;
                     padding: 4px;
                     z-index: 1000;
                     opacity: 0;
-                    transform: translateY(-8px) scale(0.96);
+                    transform: translateY(-4px);
                     transform-origin: top center;
                     pointer-events: none;
-                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(116, 55, 149, 0.2);
-                    backdrop-filter: blur(8px);
+                    transition: opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+                    box-shadow: 0 10px 26px rgba(2, 6, 23, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+                    backdrop-filter: blur(10px) saturate(1.3);
+                    -webkit-backdrop-filter: blur(10px) saturate(1.3);
                     max-height: 200px;
                     overflow-y: auto;
+                    scrollbar-width: thin;
+                    scrollbar-color: rgba(147, 197, 253, 0.45) transparent;
                 }
 
                 .gmm-dropdown-menu::-webkit-scrollbar {
@@ -618,32 +609,32 @@ app.registerExtension({
                 }
 
                 .gmm-dropdown-menu::-webkit-scrollbar-track {
-                    background: rgba(30, 30, 45, 0.5);
-                    border-radius: 2px;
+                    background: transparent;
                 }
 
                 .gmm-dropdown-menu::-webkit-scrollbar-thumb {
-                    background: rgba(116, 55, 149, 0.5);
+                    background: rgba(147, 197, 253, 0.5);
                     border-radius: 2px;
                 }
 
                 .gmm-dropdown-menu::-webkit-scrollbar-thumb:hover {
-                    background: rgba(139, 75, 168, 0.7);
+                    background: rgba(147, 197, 253, 0.7);
                 }
 
                 .gmm-custom-dropdown.open .gmm-dropdown-menu {
                     opacity: 1;
-                    transform: translateY(0) scale(1);
+                    transform: translateY(0);
                     pointer-events: auto;
                 }
 
                 .gmm-dropdown-item {
-                    padding: 8px 12px;
-                    color: #D0D0E0;
-                    font-size: 13px;
+                    padding: 5px 8px;
+                    color: #B4C7DE;
+                    font-size: 11.5px;
                     cursor: pointer;
-                    border-radius: 4px;
-                    transition: all 0.2s ease;
+                    border-radius: 6px;
+                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                color 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
@@ -652,13 +643,13 @@ app.registerExtension({
                 }
 
                 .gmm-dropdown-item:hover {
-                    background: rgba(116, 55, 149, 0.25);
-                    color: #FFFFFF;
+                    background: rgba(59, 130, 246, 0.16);
+                    color: #F2FAFF;
                 }
 
                 .gmm-dropdown-item.active {
-                    background: linear-gradient(90deg, rgba(116, 55, 149, 0.4) 0%, rgba(139, 75, 168, 0.3) 100%);
-                    color: #FFFFFF;
+                    background: rgba(59, 130, 246, 0.16);
+                    color: #F2FAFF;
                     font-weight: 500;
                 }
 
@@ -668,14 +659,14 @@ app.registerExtension({
                     left: 0;
                     top: 50%;
                     transform: translateY(-50%);
-                    width: 3px;
+                    width: 2px;
                     height: 60%;
-                    background: linear-gradient(180deg, #9b59b6 0%, #743795 100%);
+                    background: #3B82F6;
                     border-radius: 0 2px 2px 0;
                 }
 
                 .gmm-dropdown-item:not(:last-child) {
-                    margin-bottom: 2px;
+                    margin-bottom: 1px;
                 }
 
                 .gmm-dropdown-item.gmm-color-item {
@@ -693,7 +684,7 @@ app.registerExtension({
                     height: 8px;
                     border-radius: 50%;
                     background: var(--item-color, #888);
-                    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+                    box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.35);
                 }
 
                 .gmm-match-filter-container {
@@ -710,52 +701,23 @@ app.registerExtension({
                 }
 
                 .gmm-groups-title {
-                    font-size: 10px;
-                    font-weight: 500;
-                    color: #B0B0B0;
-                }
-
-                .gmm-settings-button {
-                    background: rgba(116, 55, 149, 0.2);
-                    border: 1px solid rgba(116, 55, 149, 0.3);
-                    border-radius: 4px;
-                    padding: 0;
-                    width: 22px;
-                    height: 22px;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: #B0B0B0;
-                    font-size: 11px;
-                    flex-shrink: 0;
-                    box-sizing: border-box;
-                }
-
-                .gmm-settings-button:hover {
-                    background: rgba(116, 55, 149, 0.4);
-                    border-color: rgba(116, 55, 149, 0.5);
-                    color: #E0E0E0;
-                }
-
-                .gmm-settings-button svg {
-                    width: 12px;
-                    height: 12px;
-                    stroke: currentColor;
+                    font-size: 11.5px;
+                    font-weight: 600;
+                    color: #B4C7DE;
                 }
 
                 .gmm-mode-indicator {
                     margin-right: auto;
-                    font-size: 12px;
-                    color: #8b4ba8;
+                    font-size: 9.5px;
+                    color: #93C5FD;
                     font-weight: 600;
-                    padding: 4px 10px;
-                    height: 22px;
-                    line-height: 14px;
-                    background: rgba(116, 55, 149, 0.15);
-                    border: 1px solid rgba(116, 55, 149, 0.3);
-                    border-radius: 4px;
+                    letter-spacing: 0.01em;
+                    padding: 0;
+                    height: 18px;
+                    line-height: 18px;
+                    background: transparent;
+                    border: none;
+                    border-radius: 0;
                     white-space: nowrap;
                     display: flex;
                     align-items: center;
@@ -763,36 +725,42 @@ app.registerExtension({
                 }
 
                 .gmm-refresh-button {
-                    background: rgba(116, 55, 149, 0.2);
-                    border: 1px solid rgba(116, 55, 149, 0.3);
-                    border-radius: 4px;
+                    background: none;
+                    border: none;
+                    border-radius: 0;
                     padding: 0;
-                    width: 22px;
-                    height: 22px;
+                    width: 18px;
+                    height: 18px;
                     cursor: pointer;
-                    transition: all 0.2s ease;
+                    transition: color 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     display: flex;
                     align-items: center;
                     justify-content: center;
+                    color: #93A9C4;
                     box-sizing: border-box;
+                    outline: none;
+                    box-shadow: none;
                 }
 
                 .gmm-refresh-button:hover {
-                    background: rgba(116, 55, 149, 0.4);
-                    border-color: rgba(116, 55, 149, 0.5);
+                    background: none;
+                    color: #F2FAFF;
+                    box-shadow: none;
                 }
 
                 .gmm-refresh-button svg {
-                    width: 10px;
-                    height: 10px;
-                    stroke: #B0B0B0;
-                    stroke-width: 2.5;
+                    width: 9px;
+                    height: 9px;
+                    stroke: currentColor;
+                    stroke-width: 2;
                 }
 
                 .gmm-groups-list {
                     flex: 1;
                     overflow-y: auto;
-                    padding: 4px;
+                    padding: 5px;
+                    scrollbar-width: thin;
+                    scrollbar-color: rgba(147, 197, 253, 0.45) transparent;
                 }
 
                 .gmm-groups-list::-webkit-scrollbar {
@@ -800,31 +768,29 @@ app.registerExtension({
                 }
 
                 .gmm-groups-list::-webkit-scrollbar-track {
-                    background: rgba(0, 0, 0, 0.1);
-                    border-radius: 2px;
+                    background: transparent;
                 }
 
                 .gmm-groups-list::-webkit-scrollbar-thumb {
-                    background: rgba(116, 55, 149, 0.5);
+                    background: rgba(147, 197, 253, 0.5);
                     border-radius: 2px;
                 }
 
                 .gmm-groups-list::-webkit-scrollbar-thumb:hover {
-                    background: rgba(116, 55, 149, 0.7);
+                    background: rgba(147, 197, 253, 0.7);
                 }
 
                 .gmm-group-item {
-                    background: linear-gradient(135deg, rgba(42, 42, 62, 0.6) 0%, rgba(58, 58, 78, 0.6) 100%);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 4px;
-                    padding: 3px 6px;
-                    margin-bottom: 2px;
-                    transition: all 0.2s ease;
-                }
-
-                .gmm-group-item:hover {
-                    border-color: rgba(116, 55, 149, 0.5);
-                    box-shadow: 0 1px 4px rgba(116, 55, 149, 0.2);
+                    background: rgba(30, 41, 59, 0.55);
+                    border: 1px solid rgba(96, 165, 250, 0.18);
+                    border-radius: 6px;
+                    padding: 2px 4px 2px 2px;
+                    margin-bottom: 3px;
+                    transition: border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+                                opacity 140ms cubic-bezier(0.22, 1, 0.36, 1);
                 }
 
                 .gmm-group-header {
@@ -834,35 +800,41 @@ app.registerExtension({
                 }
 
                 .gmm-group-color-indicator {
-                    width: 4px;
-                    height: 16px;
+                    width: 3px;
+                    height: 10px;
                     border-radius: 2px;
                     flex-shrink: 0;
+                    align-self: center;
                 }
 
                 .gmm-group-name {
                     flex: 1;
-                    color: #E0E0E0;
-                    font-size: 13px;
+                    color: #DDE9F5;
+                    font-size: 10px;
+                    line-height: 14px;
                     font-weight: 500;
+                    letter-spacing: 0.01em;
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
                     min-width: 0;
-                    transition: color 0.3s ease;
+                    transition: color 220ms cubic-bezier(0.22, 1, 0.36, 1);
                 }
 
                 .gmm-group-name.disabled {
-                    color: #666666;
+                    color: #7C93B0;
                 }
 
                 .gmm-switch {
-                    width: 18px;
-                    height: 18px;
+                    width: 14px;
+                    height: 14px;
                     border-radius: 50%;
-                    background: linear-gradient(135deg, rgba(116, 55, 149, 0.3) 0%, rgba(139, 75, 168, 0.3) 100%);
-                    border: 1px solid rgba(116, 55, 149, 0.5);
-                    transition: all 0.3s ease;
+                    background: rgba(2, 6, 23, 0.28);
+                    border: 1px solid rgba(96, 165, 250, 0.18);
+                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     cursor: pointer;
                     flex-shrink: 0;
                     position: relative;
@@ -876,10 +848,10 @@ app.registerExtension({
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%);
-                    width: 10px;
-                    height: 10px;
-                    stroke: rgba(255, 255, 255, 0.3);
-                    transition: all 0.3s ease;
+                    width: 8px;
+                    height: 8px;
+                    stroke: #4E617E;
+                    transition: stroke 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     display: block;
                     overflow: visible;
                     padding: 0;
@@ -887,27 +859,35 @@ app.registerExtension({
                 }
 
                 .gmm-switch:hover {
-                    box-shadow: 0 0 12px rgba(139, 75, 168, 0.4);
-                    transform: scale(1.1);
+                    background: rgba(59, 130, 246, 0.16);
+                    border-color: rgba(147, 197, 253, 0.42);
+                    transform: scale(1.08);
+                }
+
+                .gmm-switch:hover svg {
+                    stroke: #F2FAFF;
                 }
 
                 .gmm-switch.active {
-                    background: linear-gradient(135deg, #743795 0%, #8b4ba8 100%);
-                    border-color: #8b4ba8;
-                    box-shadow: 0 0 8px rgba(139, 75, 168, 0.6);
+                    background: #2563EB;
+                    border-color: #3B82F6;
+                    box-shadow: 0 0 8px rgba(59, 130, 246, 0.85);
                 }
 
                 .gmm-switch.active svg {
-                    stroke: white;
+                    stroke: #FFFFFF;
                 }
 
                 .gmm-linkage-button {
-                    width: 18px;
-                    height: 18px;
+                    width: 14px;
+                    height: 14px;
                     border-radius: 50%;
-                    background: rgba(116, 55, 149, 0.2);
-                    border: 1px solid rgba(116, 55, 149, 0.3);
-                    transition: all 0.2s ease;
+                    background: rgba(2, 6, 23, 0.28);
+                    border: 1px solid rgba(96, 165, 250, 0.18);
+                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     cursor: pointer;
                     flex-shrink: 0;
                     position: relative;
@@ -921,10 +901,10 @@ app.registerExtension({
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%);
-                    width: 10px;
-                    height: 10px;
-                    stroke: #B0B0B0;
-                    transition: all 0.2s ease;
+                    width: 8px;
+                    height: 8px;
+                    stroke: #4E617E;
+                    transition: stroke 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     display: block;
                     overflow: visible;
                     padding: 0;
@@ -932,32 +912,34 @@ app.registerExtension({
                 }
 
                 .gmm-linkage-button:hover {
-                    background: rgba(116, 55, 149, 0.4);
-                    border-color: rgba(116, 55, 149, 0.5);
-                    transform: scale(1.1);
+                    background: rgba(59, 130, 246, 0.16);
+                    border-color: rgba(147, 197, 253, 0.42);
+                    transform: scale(1.08);
                 }
 
                 .gmm-linkage-button:hover svg {
-                    stroke: #E0E0E0;
+                    stroke: #F2FAFF;
                 }
 
                 .gmm-linkage-button.active {
-                    background: linear-gradient(135deg, #743795 0%, #8b4ba8 100%);
-                    border-color: #8b4ba8;
-                    box-shadow: 0 0 8px rgba(139, 75, 168, 0.6);
+                    background: #2563EB;
+                    border-color: #3B82F6;
+                    box-shadow: 0 0 8px rgba(59, 130, 246, 0.7);
                 }
 
                 .gmm-linkage-button.active svg {
-                    stroke: white;
+                    stroke: #FFFFFF;
                 }
 
                 .gmm-navigate-button {
-                    width: 18px;
-                    height: 18px;
+                    width: 14px;
+                    height: 14px;
                     border-radius: 4px;
-                    background: rgba(74, 144, 226, 0.2);
-                    border: 1px solid rgba(74, 144, 226, 0.3);
-                    transition: all 0.2s ease;
+                    background: rgba(2, 6, 23, 0.28);
+                    border: 1px solid rgba(96, 165, 250, 0.18);
+                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     cursor: pointer;
                     flex-shrink: 0;
                     position: relative;
@@ -971,10 +953,10 @@ app.registerExtension({
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%);
-                    width: 10px;
-                    height: 10px;
-                    stroke: #4A90E2;
-                    transition: all 0.2s ease;
+                    width: 8px;
+                    height: 8px;
+                    stroke: #4E617E;
+                    transition: stroke 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     display: block;
                     overflow: visible;
                     padding: 0;
@@ -982,19 +964,19 @@ app.registerExtension({
                 }
 
                 .gmm-navigate-button:hover {
-                    background: rgba(74, 144, 226, 0.4);
-                    border-color: rgba(74, 144, 226, 0.6);
-                    transform: scale(1.1);
+                    background: rgba(59, 130, 246, 0.16);
+                    border-color: rgba(147, 197, 253, 0.42);
+                    transform: scale(1.08);
                 }
 
                 .gmm-navigate-button:hover svg {
-                    stroke: #6FA8E8;
+                    stroke: #93C5FD;
                 }
 
                 @keyframes gmmFadeIn {
                     from {
                         opacity: 0;
-                        transform: translateY(5px);
+                        transform: translateY(4px);
                     }
                     to {
                         opacity: 1;
@@ -1006,23 +988,30 @@ app.registerExtension({
                     position: fixed;
                     top: 50%;
                     left: 50%;
-                    transform: translate(-50%, -50%) scale(0.9);
-                    background: #1e1e2e;
-                    border: 1px solid rgba(116, 55, 149, 0.5);
+                    transform: translate(-50%, -50%) scale(0.96);
+                    background: rgba(5, 11, 22, 0.88);
+                    border: 1px solid #2C5080;
                     border-radius: 12px;
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(116, 55, 149, 0.2);
-                    padding: 16px;
+                    box-shadow: 0 34px 90px rgba(2, 6, 23, 0.66), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+                    backdrop-filter: blur(18px) saturate(1.5);
+                    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+                    padding: 14px;
                     min-width: 280px;
                     max-width: 340px;
                     z-index: 10000;
                     opacity: 0;
-                    animation: gmmDialogShow 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                    animation: gmmDialogShow 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+                    color: #DDE9F5;
+                    font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
+                    font-size: 13.5px;
+                    line-height: 1.5;
+                    box-sizing: border-box;
                 }
 
                 @keyframes gmmDialogShow {
                     0% {
                         opacity: 0;
-                        transform: translate(-50%, -50%) scale(0.9);
+                        transform: translate(-50%, -50%) scale(0.96);
                     }
                     100% {
                         opacity: 1;
@@ -1031,7 +1020,7 @@ app.registerExtension({
                 }
 
                 .gmm-linkage-dialog.closing {
-                    animation: gmmDialogHide 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                    animation: gmmDialogHide 140ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
                 }
 
                 @keyframes gmmDialogHide {
@@ -1041,7 +1030,7 @@ app.registerExtension({
                     }
                     100% {
                         opacity: 0;
-                        transform: translate(-50%, -50%) scale(0.9);
+                        transform: translate(-50%, -50%) scale(0.96);
                     }
                 }
 
@@ -1049,93 +1038,128 @@ app.registerExtension({
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    margin-bottom: 16px;
-                    padding-bottom: 12px;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    margin-bottom: 12px;
+                    padding-bottom: 10px;
+                    border-bottom: 1px solid #2C5080;
                 }
 
                 .gmm-dialog-header h3 {
                     margin: 0;
-                    font-size: 14px;
+                    font-size: 13.5px;
                     font-weight: 600;
-                    color: #E0E0E0;
+                    color: #F2FAFF;
                     flex: 1;
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
                     min-width: 0;
-                    padding-right: 12px;
+                    padding-right: 10px;
+                    letter-spacing: 0.01em;
+                }
+
+                .gmm-section-header > span {
+                    font-size: 12.5px;
+                    font-weight: 600;
+                    color: #B4C7DE;
+                    letter-spacing: 0.01em;
                 }
 
                 .gmm-dialog-close {
-                    width: 24px;
-                    height: 24px;
+                    width: 20px;
+                    height: 20px;
                     border-radius: 6px;
-                    background: rgba(220, 38, 38, 0.2);
-                    border: 1px solid rgba(220, 38, 38, 0.3);
-                    color: #E0E0E0;
-                    font-size: 16px;
-                    line-height: 22px;
+                    background: #DC2626;
+                    border: none;
+                    color: #FFFFFF;
+                    font-size: 14px;
+                    line-height: 20px;
                     text-align: center;
                     cursor: pointer;
-                    transition: all 0.2s ease;
+                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
+                    flex-shrink: 0;
                 }
 
                 .gmm-dialog-close:hover {
-                    background: rgba(220, 38, 38, 0.4);
-                    border-color: rgba(220, 38, 38, 0.5);
+                    background: #EF4444;
+                    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+                }
+
+                .gmm-dialog-backdrop {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(2, 6, 23, 0.55);
+                    z-index: 9999;
+                    animation: gmmBackdropIn 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+                }
+
+                .gmm-dialog-backdrop.closing {
+                    animation: gmmBackdropOut 140ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+                }
+
+                @keyframes gmmBackdropIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+
+                @keyframes gmmBackdropOut {
+                    from { opacity: 1; }
+                    to { opacity: 0; }
                 }
 
                 .gmm-linkage-section {
-                    margin-bottom: 16px;
+                    margin-bottom: 12px;
                 }
 
                 .gmm-section-header {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    margin-bottom: 8px;
+                    margin-bottom: 6px;
                 }
 
                 .gmm-section-header span {
-                    font-size: 13px;
+                    font-size: 12.5px;
                     font-weight: 600;
-                    color: #B0B0B0;
+                    color: #B4C7DE;
                 }
 
                 .gmm-add-rule {
-                    width: 22px;
-                    height: 22px;
+                    width: 20px;
+                    height: 20px;
                     border-radius: 6px;
-                    background: linear-gradient(135deg, #743795 0%, #8b4ba8 100%);
+                    background: #2563EB;
                     border: none;
-                    color: white;
-                    font-size: 16px;
-                    line-height: 22px;
+                    color: #FFFFFF;
+                    font-size: 14px;
+                    line-height: 18px;
                     text-align: center;
                     cursor: pointer;
-                    transition: all 0.2s ease;
+                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
                 }
 
                 .gmm-add-rule:hover {
-                    background: linear-gradient(135deg, #8b4ba8 0%, #a35dbe 100%);
+                    background: #3B82F6;
+                    box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
                 }
 
                 .gmm-rules-list {
                     display: flex;
                     flex-direction: column;
-                    gap: 6px;
+                    gap: 4px;
                 }
 
                 .gmm-rule-item {
                     display: flex;
                     align-items: center;
-                    gap: 6px;
-                    padding: 6px 8px;
-                    background: rgba(42, 42, 62, 0.6);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    gap: 5px;
+                    padding: 5px 7px;
+                    background: rgba(59, 130, 246, 0.10);
+                    border: 1px solid rgba(96, 165, 250, 0.32);
                     border-radius: 6px;
-                    animation: gmmFadeIn 0.3s ease-out;
+                    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+                    animation: gmmFadeIn 220ms cubic-bezier(0.22, 1, 0.36, 1);
                 }
 
                 .gmm-rule-item .gmm-custom-dropdown {
@@ -1145,9 +1169,22 @@ app.registerExtension({
 
                 .gmm-rule-item .gmm-dropdown-trigger {
                     padding: 4px 8px;
-                    font-size: 12px;
+                    font-size: 11.5px;
                     width: 100%;
                     box-sizing: border-box;
+                    background: rgba(3, 8, 18, 0.72);
+                    border-color: rgba(96, 165, 250, 0.26);
+                    color: #EAF3FF;
+                }
+
+                .gmm-rule-item .gmm-dropdown-trigger:hover {
+                    background: rgba(8, 18, 34, 0.90);
+                    border-color: rgba(147, 197, 253, 0.55);
+                    color: #FFFFFF;
+                }
+
+                .gmm-rule-item .gmm-dropdown-arrow {
+                    color: #7FA6CE;
                 }
 
                 .gmm-rule-item .gmm-rule-action-dropdown {
@@ -1160,15 +1197,19 @@ app.registerExtension({
                 }
 
                 .gmm-delete-rule {
-                    width: 22px;
-                    height: 22px;
+                    width: 20px;
+                    height: 20px;
                     border-radius: 6px;
-                    background: linear-gradient(135deg, rgba(220, 38, 38, 0.8) 0%, rgba(185, 28, 28, 0.8) 100%);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    color: white;
-                    font-size: 14px;
+                    box-sizing: border-box;
+                    background: #DC2626;
+                    border: 1px solid transparent;
+                    color: #FFFFFF;
+                    font-size: 13px;
                     cursor: pointer;
-                    transition: all 0.2s ease;
+                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     flex-shrink: 0;
                     display: flex;
                     align-items: center;
@@ -1176,92 +1217,109 @@ app.registerExtension({
                 }
 
                 .gmm-delete-rule:hover {
-                    background: linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(220, 38, 38, 0.9) 100%);
+                    background: #EF4444;
+                    border-color: transparent;
+                    color: #FFFFFF;
+                    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.42);
                 }
 
                 .gmm-dialog-footer {
                     display: flex;
-                    gap: 10px;
-                    margin-top: 16px;
-                    padding-top: 12px;
-                    border-top: 1px solid rgba(255, 255, 255, 0.1);
+                    gap: 8px;
+                    margin-top: 12px;
+                    padding-top: 10px;
+                    border-top: 1px solid #2C5080;
                 }
 
                 .gmm-button {
                     flex: 1;
-                    padding: 10px 16px;
-                    background: linear-gradient(135deg, rgba(64, 64, 84, 0.8) 0%, rgba(74, 74, 94, 0.8) 100%);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 8px;
-                    color: #E0E0E0;
+                    padding: 6px 12px;
+                    background: #4B5563;
+                    border: 1px solid #4B5563;
+                    border-radius: 6px;
+                    color: #F2FAFF;
                     cursor: pointer;
-                    font-size: 13px;
+                    font-size: 12.5px;
                     font-weight: 500;
-                    transition: all 0.2s ease;
+                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                color 140ms cubic-bezier(0.22, 1, 0.36, 1);
                 }
 
                 .gmm-button:hover {
-                    background: linear-gradient(135deg, rgba(84, 84, 104, 0.9) 0%, rgba(94, 94, 114, 0.9) 100%);
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                    background: #6B7280;
+                    border-color: #6B7280;
+                    color: #FFFFFF;
                 }
 
                 .gmm-button-primary {
-                    background: linear-gradient(135deg, #743795 0%, #8b4ba8 100%);
-                    border: 1px solid rgba(139, 75, 168, 0.5);
+                    background: #2563EB;
+                    border: 1px solid transparent;
+                    color: #FFFFFF;
                 }
 
                 .gmm-button-primary:hover {
-                    background: linear-gradient(135deg, #8b4ba8 0%, #a35dbe 100%);
-                    box-shadow: 0 4px 12px rgba(116, 55, 149, 0.4);
+                    background: #3B82F6;
+                    border-color: transparent;
+                    color: #FFFFFF;
+                    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
                 }
 
                 .gmm-settings-dialog {
                     position: fixed;
                     top: 50%;
                     left: 50%;
-                    transform: translate(-50%, -50%) scale(0.9);
-                    background: #1e1e2e;
-                    border: 1px solid rgba(116, 55, 149, 0.5);
+                    transform: translate(-50%, -50%) scale(0.96);
+                    background: rgba(5, 11, 22, 0.88);
+                    border: 1px solid #2C5080;
                     border-radius: 12px;
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(116, 55, 149, 0.2);
-                    padding: 16px;
+                    box-shadow: 0 34px 90px rgba(2, 6, 23, 0.66), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+                    backdrop-filter: blur(18px) saturate(1.5);
+                    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+                    padding: 14px;
                     min-width: 280px;
                     max-width: 340px;
                     z-index: 10000;
                     opacity: 0;
-                    animation: gmmDialogShow 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                    animation: gmmDialogShow 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+                    color: #DDE9F5;
+                    font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
+                    font-size: 13.5px;
+                    line-height: 1.5;
+                    box-sizing: border-box;
                 }
 
                 .gmm-settings-dialog.closing {
-                    animation: gmmDialogHide 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                    animation: gmmDialogHide 140ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
                 }
 
                 .gmm-settings-dialog-content {
                     display: flex;
                     flex-direction: column;
-                    gap: 12px;
+                    gap: 10px;
                 }
 
                 .gmm-settings-dialog-title {
-                    font-size: 16px;
+                    font-size: 13.5px;
                     font-weight: 600;
-                    color: #E0E0E0;
-                    margin: 0 0 12px 0;
-                    padding-bottom: 12px;
-                    border-bottom: 1px solid rgba(116, 55, 149, 0.3);
+                    color: #F2FAFF;
+                    margin: 0 0 10px 0;
+                    padding-bottom: 10px;
+                    border-bottom: 1px solid #2C5080;
                 }
 
                 .gmm-settings-dialog-item {
                     display: flex;
                     flex-direction: row;
                     align-items: center;
-                    gap: 12px;
+                    gap: 10px;
                 }
 
                 .gmm-settings-dialog-label {
-                    font-size: 13px;
-                    color: #B0B0B0;
+                    font-size: 12.5px;
+                    color: #B4C7DE;
                     font-weight: 500;
+                    letter-spacing: 0.01em;
                     flex: 0 0 auto;
                     width: 120px;
                 }
@@ -1272,115 +1330,103 @@ app.registerExtension({
                 }
 
                 .gmm-settings-dialog .gmm-dropdown-trigger {
-                    padding: 8px 12px;
-                    font-size: 14px;
+                    padding: 6px 10px;
+                    font-size: 12.5px;
                     width: 100%;
+                    background: rgba(30, 41, 59, 0.62);
+                    border-color: rgba(96, 165, 250, 0.24);
+                }
+
+                .gmm-settings-dialog .gmm-dropdown-trigger:hover {
+                    background: rgba(38, 52, 73, 0.78);
                 }
 
                 .gmm-drag-handle {
-                    width: 16px;
-                    height: 20px;
+                    width: 9px;
+                    height: 15px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     cursor: grab;
                     flex-shrink: 0;
                     opacity: 0.5;
-                    transition: all 0.2s ease;
-                    margin-right: 4px;
-                    border-radius: 3px;
-                    background: transparent;
+                    transition: opacity 140ms cubic-bezier(0.22, 1, 0.36, 1);
+                    margin: 0;
+                    background: none;
+                    border: none;
+                    outline: none;
+                    box-shadow: none;
+                    touch-action: none;
+                    user-select: none;
+                    -webkit-user-select: none;
                 }
 
                 .gmm-drag-handle:hover {
                     opacity: 1;
-                    background: rgba(116, 55, 149, 0.15);
                 }
 
                 .gmm-drag-handle:active {
                     cursor: grabbing;
-                    background: rgba(116, 55, 149, 0.25);
+                    opacity: 1;
                 }
 
                 .gmm-drag-handle svg {
-                    width: 12px;
-                    height: 12px;
-                    stroke: #B0B0B0;
-                    stroke-width: 2;
+                    width: 9px;
+                    height: 13px;
+                    fill: #93A9C4;
+                    stroke: none;
                 }
 
-                .gmm-drag-handle:hover svg {
-                    stroke: #8b4ba8;
+                .gmm-drag-handle:hover svg,
+                .gmm-drag-handle:active svg {
+                    fill: #93C5FD;
                 }
 
-                .gmm-group-item {
-                    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+                .gmm-group-item.gmm-dragging .gmm-drag-handle {
+                    opacity: 1;
                 }
 
-                .gmm-group-item[draggable="true"] {
-                    cursor: grab;
-                }
-
-                .gmm-group-item[draggable="true"]:active {
-                    cursor: grabbing;
+                .gmm-group-item.gmm-dragging .gmm-drag-handle svg {
+                    fill: #BFDBFE;
                 }
 
                 .gmm-group-item.gmm-dragging {
-                    opacity: 0.4;
-                    transform: scale(0.98);
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+                    opacity: 0.92;
+                    transform: scale(1.01);
+                    box-shadow: 0 10px 26px rgba(2, 6, 23, 0.55);
+                    border-color: #3B82F6;
+                    background: rgba(59, 130, 246, 0.16);
                     z-index: 100;
+                    position: relative;
                 }
 
-                .gmm-group-item.gmm-drag-over {
-                    border: 2px solid #8b4ba8;
-                    background: linear-gradient(135deg, rgba(116, 55, 149, 0.25) 0%, rgba(139, 75, 168, 0.25) 100%);
-                    transform: scale(1.02);
-                    box-shadow: 0 4px 16px rgba(116, 55, 149, 0.3);
-                }
-
-                .gmm-group-item.gmm-drag-over-top {
-                    border-top: 2px solid #8b4ba8;
-                    border-top-left-radius: 8px;
-                    border-top-right-radius: 8px;
-                }
-
-                .gmm-group-item.gmm-drag-over-bottom {
-                    border-bottom: 2px solid #8b4ba8;
-                    border-bottom-left-radius: 8px;
-                    border-bottom-right-radius: 8px;
-                }
-
-                .gmm-drag-placeholder {
-                    background: rgba(116, 55, 149, 0.1);
-                    border: 2px dashed rgba(139, 75, 168, 0.5);
-                    border-radius: 6px;
-                    margin-bottom: 4px;
-                    min-height: 32px;
-                    transition: all 0.2s ease;
+                .gmm-groups-list.gmm-dragging-active {
+                    cursor: grabbing;
                 }
 
                 .gmm-title-match-input {
-                    background: rgba(45, 45, 65, 0.9);
-                    border: 1px solid rgba(116, 55, 149, 0.4);
-                    border-radius: 4px;
-                    padding: 8px 12px;
-                    color: #F0F0F0;
-                    font-size: 14px;
+                    background: rgba(4, 11, 22, 0.66);
+                    border: 1px solid rgba(96, 165, 250, 0.18);
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                    color: #DDE9F5;
+                    font-size: 12.5px;
                     flex: 1;
                     width: 100%;
-                    transition: all 0.2s ease;
+                    outline: none;
+                    transition: border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                                box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
                 }
 
                 .gmm-title-match-input:focus {
                     outline: none;
-                    border-color: #8b4ba8;
-                    background: rgba(55, 55, 75, 0.95);
+                    border-color: #3B82F6;
+                    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
                 }
 
                 .gmm-title-match-input::placeholder {
-                    color: #888;
-                    font-size: 9px;
+                    color: #7C93B0;
+                    font-size: 11.5px;
                 }
 
                 .gmm-title-match-wrapper {
@@ -1398,9 +1444,6 @@ app.registerExtension({
             const titleEl = this.customUI.querySelector('.gmm-groups-title');
             if (titleEl) titleEl.textContent = t('title');
 
-            const settingsBtn = this.customUI.querySelector('#gmm-settings-btn .gmm-settings-text');
-            if (settingsBtn) settingsBtn.textContent = t('settings');
-
             this.updateModeIndicator();
             this.updateGroupsList();
         };
@@ -1416,14 +1459,6 @@ app.registerExtension({
 
         nodeType.prototype.bindUIEvents = function () {
             const container = this.customUI;
-
-            const settingsBtn = container.querySelector('#gmm-settings-btn');
-            if (settingsBtn) {
-                settingsBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.showSettingsDialog();
-                });
-            }
 
             const refreshButton = container.querySelector('#gmm-refresh');
             if (refreshButton) {
@@ -1484,10 +1519,14 @@ app.registerExtension({
         };
 
         nodeType.prototype.updateGroupsList = function () {
+            if (this._gmmDragging) return;
+
             const listContainer = this.customUI.querySelector('#gmm-groups-list');
             if (!listContainer) {
                 return;
             }
+
+            const previousScrollTop = listContainer.scrollTop;
 
             listContainer.innerHTML = '';
 
@@ -1563,6 +1602,8 @@ app.registerExtension({
             const afterCleanupCount = this.properties.groups.length;
             if (beforeCleanupCount !== afterCleanupCount) {
             }
+
+            listContainer.scrollTop = previousScrollTop;
 
             (typeof logger !== 'undefined' ? logger : console).info('[GMM-UI] === 组列表更新完成 ===');
         };
@@ -1706,6 +1747,7 @@ app.registerExtension({
 
         nodeType.prototype.refreshWidgets = function () {
             if (!this.customUI) return;
+            if (this._gmmDragging) return;
 
             const groups = GMM_SERVICE.getGroups();
             const listContainer = this.customUI.querySelector('#gmm-color-filter-dropdown')?.closest('.gmm-groups-header')?.nextElementSibling || this.customUI.querySelector('#gmm-groups-list');
@@ -1834,6 +1876,17 @@ app.registerExtension({
                             isDirty = true;
                         }
                     }
+
+                    const linkageBtn = groupItem.querySelector('.gmm-linkage-button');
+                    if (linkageBtn) {
+                        const hasLinkage = groupConfig.linkage &&
+                            ((groupConfig.linkage.on_enable?.length > 0) ||
+                             (groupConfig.linkage.on_disable?.length > 0));
+                        if (linkageBtn.classList.contains('active') !== !!hasLinkage) {
+                            linkageBtn.classList.toggle('active', !!hasLinkage);
+                            isDirty = true;
+                        }
+                    }
                 }
 
                 this.properties.groupStatesCache[groupKey] = currentEnabled;
@@ -1951,7 +2004,6 @@ app.registerExtension({
             item.className = 'gmm-group-item';
             item.dataset.groupName = groupConfig.group_name;
             item.dataset.groupKey = this.getGroupKey(group);
-            item.draggable = false;
 
             const displayName = this.truncateText(groupConfig.group_name, 30);
             const fullName = groupConfig.group_name || '';
@@ -1966,13 +2018,13 @@ app.registerExtension({
             item.innerHTML = `
                 <div class="gmm-group-header">
                     <div class="gmm-drag-handle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
-                            <circle cx="9" cy="5" r="1.5"></circle>
-                            <circle cx="9" cy="12" r="1.5"></circle>
-                            <circle cx="9" cy="19" r="1.5"></circle>
-                            <circle cx="15" cy="5" r="1.5"></circle>
-                            <circle cx="15" cy="12" r="1.5"></circle>
-                            <circle cx="15" cy="19" r="1.5"></circle>
+                        <svg viewBox="0 0 10 18" width="10" height="18" fill="currentColor" aria-hidden="true">
+                            <circle cx="2.5" cy="4" r="1.2"></circle>
+                            <circle cx="7.5" cy="4" r="1.2"></circle>
+                            <circle cx="2.5" cy="9" r="1.2"></circle>
+                            <circle cx="7.5" cy="9" r="1.2"></circle>
+                            <circle cx="2.5" cy="14" r="1.2"></circle>
+                            <circle cx="7.5" cy="14" r="1.2"></circle>
                         </svg>
                     </div>
                     <div class="gmm-group-color-indicator" style="background-color: ${groupColor};"></div>
@@ -2017,136 +2069,173 @@ app.registerExtension({
                 });
             }
 
-            item.addEventListener('dragstart', (e) => this.onDragStart(e, groupConfig.group_name));
-            item.addEventListener('dragover', (e) => this.onDragOver(e));
-            item.addEventListener('drop', (e) => this.onDrop(e, groupConfig.group_name));
-            item.addEventListener('dragend', (e) => this.onDragEnd(e));
-            item.addEventListener('dragenter', (e) => this.onDragEnter(e));
-            item.addEventListener('dragleave', (e) => this.onDragLeave(e));
-
             const dragHandle = item.querySelector('.gmm-drag-handle');
             if (dragHandle) {
-                dragHandle.addEventListener('mousedown', (e) => {
-                    item.setAttribute('draggable', 'true');
-                });
-                dragHandle.addEventListener('mouseup', (e) => {
-                    if (!this._draggedGroup) {
-                        item.setAttribute('draggable', 'false');
-                    }
-                });
+                dragHandle.addEventListener('pointerdown', (e) => this.onHandlePointerDown(e, item));
             }
 
             return item;
         };
 
-        nodeType.prototype.onDragStart = function (e, groupName) {
-            e.stopPropagation();
-            this._draggedGroup = groupName;
-            e.target.classList.add('gmm-dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', groupName);
-            e.dataTransfer.setDragImage(e.target, 0, 0);
-            
-            setTimeout(() => {
-                e.target.style.opacity = '0.4';
-            }, 0);
-        };
+        nodeType.prototype.onHandlePointerDown = function (e, item) {
+            if (e.button !== 0 || this._gmmDragging) return;
+            if (e.target && e.target.closest && e.target.closest('.gmm-switch, .gmm-linkage-button, .gmm-navigate-button')) return;
 
-        nodeType.prototype.onDragOver = function (e) {
             e.preventDefault();
             e.stopPropagation();
-            e.dataTransfer.dropEffect = 'move';
-            
-            const target = e.currentTarget;
-            if (!target || !target.classList.contains('gmm-group-item')) return;
-            
-            const rect = target.getBoundingClientRect();
-            const midY = rect.top + rect.height / 2;
-            const isTopHalf = e.clientY < midY;
-            
-            target.classList.remove('gmm-drag-over-top', 'gmm-drag-over-bottom');
-            target.classList.add(isTopHalf ? 'gmm-drag-over-top' : 'gmm-drag-over-bottom');
+
+            const listContainer = item.parentElement;
+            if (!listContainer) return;
+
+            this._gmmDragging = true;
+            this._draggedGroup = item.dataset.groupName;
+            this._gmmDragItem = item;
+            this._gmmDragList = listContainer;
+            this._gmmDragStartY = e.clientY;
+            this._gmmDragMoved = false;
+
+            listContainer.classList.add('gmm-dragging-active');
+
+            const onPointerMove = (moveEvent) => this.onHandlePointerMove(moveEvent);
+            const onPointerUp = (upEvent) => {
+                window.removeEventListener('pointermove', onPointerMove, true);
+                window.removeEventListener('pointerup', onPointerUp, true);
+                window.removeEventListener('pointercancel', onPointerUp, true);
+                this.onHandlePointerUp(upEvent);
+            };
+
+            window.addEventListener('pointermove', onPointerMove, true);
+            window.addEventListener('pointerup', onPointerUp, true);
+            window.addEventListener('pointercancel', onPointerUp, true);
         };
 
-        nodeType.prototype.onDragEnter = function (e) {
+        nodeType.prototype.onHandlePointerMove = function (e) {
+            if (!this._gmmDragging) return;
+
             e.preventDefault();
             e.stopPropagation();
-            const target = e.currentTarget;
-            if (target && target.classList.contains('gmm-group-item')) {
-                target.classList.add('gmm-drag-over');
+
+            const item = this._gmmDragItem;
+            const listContainer = this._gmmDragList;
+            if (!item || !listContainer) return;
+
+            if (Math.abs(e.clientY - this._gmmDragStartY) > 3) {
+                this._gmmDragMoved = true;
             }
-        };
 
-        nodeType.prototype.onDragLeave = function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const target = e.currentTarget;
-            if (target && target.classList.contains('gmm-group-item')) {
-                const rect = target.getBoundingClientRect();
-                if (e.clientX < rect.left || e.clientX >= rect.right || 
-                    e.clientY < rect.top || e.clientY >= rect.bottom) {
-                    target.classList.remove('gmm-drag-over', 'gmm-drag-over-top', 'gmm-drag-over-bottom');
+            if (this._gmmDragMoved && !item.classList.contains('gmm-dragging')) {
+                item.classList.add('gmm-dragging');
+            }
+
+            this.autoScrollGroupsList(listContainer, e.clientY);
+
+            const siblings = Array.from(listContainer.children).filter(
+                child => child.classList.contains('gmm-group-item') && child !== item
+            );
+
+            let referenceNode = null;
+            for (const sibling of siblings) {
+                const rect = sibling.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                if (e.clientY < midY) {
+                    referenceNode = sibling;
+                    break;
                 }
             }
+
+            if (referenceNode) {
+                if (item.nextElementSibling !== referenceNode) {
+                    listContainer.insertBefore(item, referenceNode);
+                }
+            } else if (item !== listContainer.lastElementChild) {
+                listContainer.appendChild(item);
+            }
         };
 
-        nodeType.prototype.onDrop = function (e, targetGroupName) {
-            e.preventDefault();
-            e.stopPropagation();
+        nodeType.prototype.autoScrollGroupsList = function (listContainer, clientY) {
+            const rect = listContainer.getBoundingClientRect();
+            const edge = 24;
+            const step = 10;
 
-            const target = e.currentTarget;
-            const isTopHalf = target.classList.contains('gmm-drag-over-top');
-            
-            if (target) {
-                target.classList.remove('gmm-drag-over', 'gmm-drag-over-top', 'gmm-drag-over-bottom');
+            if (clientY < rect.top + edge) {
+                listContainer.scrollTop -= step;
+            } else if (clientY > rect.bottom - edge) {
+                listContainer.scrollTop += step;
             }
-
-            const draggedGroupName = this._draggedGroup;
-            if (!draggedGroupName || draggedGroupName === targetGroupName) {
-                return;
-            }
-
-            this.updateGroupOrder(draggedGroupName, targetGroupName, isTopHalf);
-            this.updateGroupsList();
         };
 
-        nodeType.prototype.onDragEnd = function (e) {
-            e.stopPropagation();
-            e.target.style.opacity = '';
-            e.target.classList.remove('gmm-dragging');
+        nodeType.prototype.onHandlePointerUp = function (e) {
+            if (!this._gmmDragging) return;
+
+            const item = this._gmmDragItem;
+            const listContainer = this._gmmDragList;
+            const moved = this._gmmDragMoved;
+
+            if (item) {
+                item.classList.remove('gmm-dragging');
+            }
+            if (listContainer) {
+                listContainer.classList.remove('gmm-dragging-active');
+            }
+
+            this._gmmDragging = false;
+            this._gmmDragItem = null;
+            this._gmmDragList = null;
+            this._gmmDragStartY = 0;
+            this._gmmDragMoved = false;
+
+            if (moved && listContainer) {
+                this.applyDomOrderToGroupOrder(listContainer);
+            }
+
             this._draggedGroup = null;
 
-            const items = this.customUI.querySelectorAll('.gmm-group-item');
-            items.forEach(item => {
-                item.classList.remove('gmm-drag-over', 'gmm-drag-over-top', 'gmm-drag-over-bottom');
-                item.setAttribute('draggable', 'false');
-            });
+            if (moved) {
+                this.updateGroupsList();
+            }
         };
 
-        nodeType.prototype.updateGroupOrder = function (draggedGroupName, targetGroupName, isTopHalf = true) {
-            const allGroups = this.getWorkflowGroups();
-            const sortedGroups = this.sortGroupsByOrder(allGroups);
-            const newOrder = sortedGroups.map(g => g.title);
-            const draggedIndex = newOrder.indexOf(draggedGroupName);
-            const targetIndex = newOrder.indexOf(targetGroupName);
+        nodeType.prototype.applyDomOrderToGroupOrder = function (listContainer) {
+            const domKeys = Array.from(listContainer.children)
+                .filter(child => child.classList.contains('gmm-group-item'))
+                .map(child => child.dataset.groupKey)
+                .filter(key => key);
 
-            if (draggedIndex === -1 || targetIndex === -1) {
+            if (domKeys.length === 0) return;
+
+            const allGroups = this.getWorkflowGroups();
+            const keyToTitle = new Map();
+            allGroups.forEach(group => {
+                keyToTitle.set(this.getGroupKey(group), group.title);
+            });
+
+            const domNames = domKeys.map(key => keyToTitle.get(key)).filter(name => name);
+            if (domNames.length === 0) return;
+
+            const domSet = new Set(domNames);
+            const fullOrder = this.sortGroupsByOrder(allGroups).map(g => g.title);
+            const visibleInFullOrder = fullOrder.filter(name => domSet.has(name));
+
+            if (visibleInFullOrder.length === 0) {
+                this.properties.groupOrder = [...domNames, ...fullOrder];
                 return;
             }
 
-            newOrder.splice(draggedIndex, 1);
+            const visibleSlots = [];
+            fullOrder.forEach((name, index) => {
+                if (domSet.has(name)) visibleSlots.push(index);
+            });
 
-            let insertIndex;
-            if (draggedIndex < targetIndex) {
-                insertIndex = isTopHalf ? targetIndex - 1 : targetIndex;
-            } else {
-                insertIndex = isTopHalf ? targetIndex : targetIndex + 1;
-            }
-            
-            insertIndex = Math.max(0, Math.min(insertIndex, newOrder.length));
-            newOrder.splice(insertIndex, 0, draggedGroupName);
+            const merged = fullOrder.slice();
+            domNames.forEach((name, i) => {
+                if (i < visibleSlots.length) {
+                    merged[visibleSlots[i]] = name;
+                } else {
+                    merged.push(name);
+                }
+            });
 
-            this.properties.groupOrder = newOrder;
+            this.properties.groupOrder = merged;
         };
 
         nodeType.prototype.getFilteredGroups = function () {
@@ -2302,6 +2391,7 @@ app.registerExtension({
         };
 
         nodeType.prototype.showSettingsDialog = function () {
+            if (document.querySelector('.gmm-settings-dialog:not(.closing)')) return;
             const dialog = document.createElement('div');
             dialog.className = 'gmm-settings-dialog';
 
@@ -2400,6 +2490,9 @@ app.registerExtension({
                 </div>
             `;
 
+            const backdrop = document.createElement('div');
+            backdrop.className = 'gmm-dialog-backdrop';
+            document.body.appendChild(backdrop);
             document.body.appendChild(dialog);
 
             const setupDropdown = (dropdownId, propertyName, onChange) => {
@@ -2446,7 +2539,14 @@ app.registerExtension({
 
             const closeDialog = () => {
                 dialog.classList.add('closing');
-                setTimeout(() => dialog.remove(), 200);
+                backdrop.classList.add('closing');
+                this._gmmSettingsOpen = false;
+                this.setDirtyCanvas?.(true, true);
+                dialog._gmmCleanup?.();
+                setTimeout(() => {
+                    dialog.remove();
+                    backdrop.remove();
+                }, 200);
             };
 
             dialog.querySelector('.gmm-dialog-close').addEventListener('click', closeDialog);
@@ -2466,15 +2566,18 @@ app.registerExtension({
                 closeDialog();
             });
 
-            setTimeout(() => {
-                const closeOnOutsideClick = (e) => {
-                    if (!dialog.contains(e.target) && document.body.contains(dialog)) {
-                        closeDialog();
-                        document.removeEventListener('click', closeOnOutsideClick);
-                    }
-                };
-                document.addEventListener('click', closeOnOutsideClick);
-            }, 100);
+            // 仅允许通过 ESC 或关闭按钮关闭弹窗，不响应外部点击
+            const onKeyDown = (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeDialog();
+                }
+            };
+            document.addEventListener('keydown', onKeyDown, true);
+            dialog._gmmCleanup = () => {
+                document.removeEventListener('keydown', onKeyDown, true);
+            };
 
             document.addEventListener('click', (e) => {
                 if (!dialog.contains(e.target)) {
@@ -2934,6 +3037,22 @@ app.registerExtension({
 
         const iconSize = 24;
         const iconMargin = 4;
+        const iconGap = 4;
+
+        nodeType.prototype._gmmTitleIconLeft = function (kind) {
+            const helpX = this.size[0] - iconSize - iconMargin;
+            return kind === "help" ? helpX : helpX - iconSize - iconGap;
+        };
+
+        nodeType.prototype._gmmHitTitleIcon = function (localPos, kind) {
+            if (!localPos) return false;
+            const left = this._gmmTitleIconLeft(kind);
+            const top = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
+            return localPos[0] > left
+                && localPos[0] < left + iconSize
+                && localPos[1] > top
+                && localPos[1] < top + iconSize;
+        };
 
         const drawFg = nodeType.prototype.onDrawForeground;
         nodeType.prototype.onDrawForeground = function (ctx) {
@@ -2948,14 +3067,16 @@ app.registerExtension({
             const r = drawFg ? drawFg.apply(this, arguments) : undefined;
             if (this.flags.collapsed) return r;
 
-            const x = this.size[0] - iconSize - iconMargin;
+            const x = this._gmmTitleIconLeft("help");
+            const settingsX = this._gmmTitleIconLeft("settings");
             const y = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
 
+            if (this._gmmSettingsOpen && !document.querySelector('.gmm-settings-dialog')) {
+                this._gmmSettingsOpen = false;
+            }
+
             if (this._gmmHelp && this._gmmHelpElement === null) {
-                this._gmmHelpElement = createHelpPopup(getDescriptionHTML(), () => {
-                    this._gmmHelp = false;
-                    this._gmmHelpElement = null;
-                });
+                this._gmmHelpElement = createHelpPopupElement(getDescriptionHTML());
             }
             else if (!this._gmmHelp && this._gmmHelpElement !== null) {
                 this._gmmHelpElement.remove();
@@ -2979,6 +3100,13 @@ app.registerExtension({
             }
 
             const helpActive = !!(this._gmmHelp || this._gmmHelpHovered);
+            const settingsActive = !!this._gmmSettingsOpen || !!this._gmmSettingsHovered;
+
+            ctx.save();
+            ctx.translate(settingsX, y);
+            ctx.scale(iconSize / 32, iconSize / 32);
+            drawNodeSettingsButton(ctx, settingsActive);
+            ctx.restore();
 
             ctx.save();
             ctx.translate(x, y);
@@ -2992,14 +3120,13 @@ app.registerExtension({
         const mouseDown = nodeType.prototype.onMouseDown;
         nodeType.prototype.onMouseDown = function (e, localPos, canvas) {
             const r = mouseDown ? mouseDown.apply(this, arguments) : undefined;
-            const iconX = this.size[0] - iconSize - iconMargin;
-            const iconY = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
-            if (
-                localPos[0] > iconX &&
-                localPos[0] < iconX + iconSize &&
-                localPos[1] > iconY &&
-                localPos[1] < iconY + iconSize
-            ) {
+            if (this._gmmHitTitleIcon(localPos, "settings")) {
+                hideTitleTip();
+                this._gmmSettingsOpen = true;
+                this.showSettingsDialog();
+                return true;
+            }
+            if (this._gmmHitTitleIcon(localPos, "help")) {
                 hideTitleTip();
                 this._gmmHelp = !this._gmmHelp;
                 return true;
@@ -3010,24 +3137,30 @@ app.registerExtension({
         const mouseMove = nodeType.prototype.onMouseMove;
         nodeType.prototype.onMouseMove = function (e, localPos, canvas) {
             const r = mouseMove ? mouseMove.apply(this, arguments) : undefined;
-            const iconX = this.size[0] - iconSize - iconMargin;
-            const iconY = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
-            const hovered = !!localPos
-                && localPos[0] > iconX && localPos[0] < iconX + iconSize
-                && localPos[1] > iconY && localPos[1] < iconY + iconSize;
-            if (hovered !== this._gmmHelpHovered) {
-                this._gmmHelpHovered = hovered;
+            const settingsHovered = this._gmmHitTitleIcon(localPos, "settings");
+            const helpHovered = this._gmmHitTitleIcon(localPos, "help");
+            if (settingsHovered !== this._gmmSettingsHovered
+                || helpHovered !== this._gmmHelpHovered) {
+                this._gmmSettingsHovered = settingsHovered;
+                this._gmmHelpHovered = helpHovered;
                 this.setDirtyCanvas(true, true);
             }
-            titleTipHovered(hovered, getLocale() === "zh" ? "节点帮助" : "Node help", e);
+            if (settingsHovered) {
+                titleTipHovered(true, getLocale() === "zh" ? "节点设置" : "Node settings", e);
+            } else if (helpHovered) {
+                titleTipHovered(true, getLocale() === "zh" ? "节点帮助" : "Node help", e);
+            } else {
+                titleTipHovered(false, "", e);
+            }
             return r;
         };
 
         const mouseLeave = nodeType.prototype.onMouseLeave;
         nodeType.prototype.onMouseLeave = function () {
             const r = mouseLeave ? mouseLeave.apply(this, arguments) : undefined;
-            if (this._gmmHelpHovered) {
+            if (this._gmmHelpHovered || this._gmmSettingsHovered) {
                 this._gmmHelpHovered = false;
+                this._gmmSettingsHovered = false;
                 this.setDirtyCanvas(true, true);
             }
             hideTitleTip();
