@@ -770,7 +770,7 @@ Manage several LoRAs as a list and apply them in row order to MODEL.
 - <b>Model Picker</b>: search, thumbnails and a large preview, with a placeholder when no preview exists
 - <b>Trigger Words</b>: each row stores preset trigger words under More settings; saved with the workflow, copyable, and never exposed as an output port
 - <b>Presets</b>: save the whole stack as a preset and reload it anytime
-- <b>Fully Automatic Caching</b>: reuses the official single-slot cache while the effective LoRA set is stable; a changed set runs uncached for that execution; a repeated LoRA is read once per run
+- <b>Fresh Read Every Execution</b>: no cross-execution weight cache, so an updated file never keeps applying stale weights; a repeated LoRA is read once per run and kept as a single row
 - <b>Official Equivalence</b>: every row goes through <code>get_full_path_or_raise</code> → <code>load_torch_file</code> → <code>load_lora_for_models</code>, matching the MODEL output of chained official LoraLoader nodes
 
 </td>

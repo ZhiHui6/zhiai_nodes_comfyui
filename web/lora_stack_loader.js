@@ -24,15 +24,14 @@ const TIP_DELAY = 1000;
 const MODEL_CACHE_MS = 60000;
 const REFRESH_MS = 250;
 const PICKER_MIN_WIDTH = 320;
-const PICKER_FALLBACK_WIDTH = 520;
-const PICKER_BASE_WIDTH = 460;
+const PICKER_TARGET_WIDTH = 760;
+const PICKER_BASE_WIDTH = 760;
 const PICKER_BASE_FONT = 14;
 const PICKER_MIN_FONT = 13;
 const PICKER_MAX_FONT = 17;
 const PICKER_EDGE = 8;
+const PICKER_BODY_HEIGHT = 360;
 const PICKER_BODY_MIN_HEIGHT = 360;
-const PICKER_BODY_MAX_HEIGHT = 520;
-const PICKER_BODY_RATIO = 0.66;
 const PICKER_BODY_MARGIN = 140;
 
 const i18n = {
@@ -987,6 +986,7 @@ const STYLE_TEXT = `
 .zll-pick__list {
     flex: 1 1 auto;
     min-width: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     padding: 4px;
     scrollbar-width: thin;
@@ -1044,11 +1044,12 @@ const STYLE_TEXT = `
 }
 .zll-picker__preview {
     display: flex;
-    flex: 0 0 clamp(208px, 38%, 320px);
+    flex: 0 0 clamp(168px, 26%, 240px);
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 6px;
     min-width: 0;
+    min-height: 0;
     overflow: hidden;
     padding: 8px;
     border-left: 1px solid rgba(96, 165, 250, 0.14);
@@ -1059,8 +1060,8 @@ const STYLE_TEXT = `
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
+    height: 280px;
     width: 100%;
-    aspect-ratio: 3 / 4;
     overflow: hidden;
     border: 1px solid rgba(96, 165, 250, 0.16);
     border-radius: 6px;
@@ -1080,6 +1081,7 @@ const STYLE_TEXT = `
 .zll-picker__empty[hidden] { display: none; }
 .zll-picker__namelabel {
     flex: 0 0 auto;
+    height: 5.6em;
     overflow: hidden;
     overflow-wrap: anywhere;
     text-align: center;
@@ -1679,11 +1681,29 @@ function syncSignature(node) {
     node._zllSignature = signature(node);
 }
 
+// The strength field only commits on change/blur. If the user types a value and
+// queues immediately (keyboard shortcut, toolbar button, API), the input can
+// still be focused and the old row.strength would be serialized. Flush the
+// focused strength input before the prompt is built.
+function commitPendingStrength(node) {
+    const active = document.activeElement;
+    if (!active || !Array.isArray(node._zllRows)) return;
+    const row = node._zllRows.find((item) => item._strengthInput === active);
+    if (!row) return;
+    const next = Number(active.value);
+    if (!Number.isFinite(next)) return;
+    row.strength = round2(Math.max(-STRENGTH_LIMIT, Math.min(STRENGTH_LIMIT, next)));
+}
+
 function writeExecutionRows(node, change = true) {
     const widget = findWidget(node, ROWS_WIDGET);
     if (!widget) return;
+    commitPendingStrength(node);
     const json = JSON.stringify(executionRows(node));
-    widget.serializeValue = () => JSON.stringify(executionRows(node));
+    widget.serializeValue = () => {
+        commitPendingStrength(node);
+        return JSON.stringify(executionRows(node));
+    };
     if (String(widget.value ?? "") !== json) {
         widget.value = json;
         if (widget._state) widget._state.value = json;
@@ -1736,7 +1756,7 @@ function loadRows(node) {
     } else {
         source = [];
     }
-    node._zllRows = source
+    const loadedRows = source
         .filter((raw) => String(raw?.name || "").trim())
         .map((raw) => makeRow({
         name: typeof raw?.name === "string" ? raw.name : "",
@@ -1745,6 +1765,15 @@ function loadRows(node) {
         trigger_words: typeof raw?.trigger_words === "string" ? raw.trigger_words : "",
         expanded: raw?.expanded === true,
     }));
+    // Older workflows/presets could contain the same LoRA more than once.
+    // Keep the last occurrence so the panel matches execution (one row per
+    // LoRA), matching the Python loader's dedupe.
+    node._zllRows = [];
+    loadedRows.forEach((row) => {
+        const existing = node._zllRows.find((item) => item.name === row.name);
+        if (existing) node._zllRows[node._zllRows.indexOf(existing)] = row;
+        else node._zllRows.push(row);
+    });
     if (Array.isArray(snapshot)) {
         writeExecutionRows(node, false);
         writeUiState(node, false);
@@ -2327,6 +2356,11 @@ function renderRow(node, row) {
     input.type = "number";
     input.step = String(STRENGTH_STEP);
     input.value = strengthText(row.strength);
+    input.addEventListener("input", () => {
+        const next = Number(input.value);
+        if (!Number.isFinite(next)) return;
+        row.strength = round2(Math.max(-STRENGTH_LIMIT, Math.min(STRENGTH_LIMIT, next)));
+    });
     input.addEventListener("change", () => commitTypedStrength(node, row, input));
     input.addEventListener("keydown", (event) => {
         if (event.key === "Enter") input.blur();
@@ -2892,15 +2926,24 @@ function applyPickerSelection() {
             return;
         }
         if (row.name !== selected.name) {
+            const duplicate = node._zllRows.find((item) => item !== row && item.name === selected.name);
+            if (duplicate) {
+                node._zllRows.splice(node._zllRows.indexOf(duplicate), 1);
+            }
             row.name = selected.name;
             row.trigger_words = "";
         }
         node._zllScrollUid = row.uid;
     } else {
-        // 新增模式：选中后才创建条目
-        const newRow = makeRow({ name: selected.name, enabled: true, strength: 1, trigger_words: "", expanded: false });
-        node._zllRows.push(newRow);
-        node._zllScrollUid = newRow.uid;
+        // 新增模式：选中后才创建条目；同一 LoRA 只保留一行，避免重复叠加
+        const existing = node._zllRows.find((item) => String(item.name) === String(selected.name));
+        if (existing) {
+            node._zllScrollUid = existing.uid;
+        } else {
+            const newRow = makeRow({ name: selected.name, enabled: true, strength: 1, trigger_words: "", expanded: false });
+            node._zllRows.push(newRow);
+            node._zllScrollUid = newRow.uid;
+        }
     }
     writeUiState(node);
     writeExecutionRows(node);
@@ -2914,17 +2957,13 @@ function pickerLayout() {
     const rootRect = root?.getBoundingClientRect ? root.getBoundingClientRect() : null;
     const viewWidth = window.innerWidth;
     const viewHeight = window.innerHeight;
-    const fallbackWidth = Math.round(Number(node?.size?.[0]) || PICKER_FALLBACK_WIDTH);
-    const measured = rootRect && rootRect.width > 8 ? Math.round(rootRect.width) : 0;
     const availWidth = Math.max(PICKER_MIN_WIDTH, viewWidth - PICKER_EDGE * 2);
-    const width = Math.min(Math.max(measured || fallbackWidth, PICKER_MIN_WIDTH), availWidth);
+    // 固定尺寸：宽度与列表高度均为常量，不再随节点宽度或视口变化；仅窄视口下收缩到可用宽度
+    const width = Math.min(PICKER_TARGET_WIDTH, availWidth);
     let left = rootRect ? Math.round(rootRect.left) : PICKER_EDGE;
     left = Math.min(Math.max(left, PICKER_EDGE), Math.max(PICKER_EDGE, viewWidth - width - PICKER_EDGE));
-    const maxBodyHeight = Math.max(
-        PICKER_BODY_MIN_HEIGHT,
-        Math.min(PICKER_BODY_MAX_HEIGHT, viewHeight - PICKER_BODY_MARGIN),
-    );
-    const bodyHeight = Math.round(Math.min(Math.max(PICKER_BODY_MIN_HEIGHT, width * PICKER_BODY_RATIO), maxBodyHeight));
+    const maxBodyHeight = Math.max(PICKER_BODY_MIN_HEIGHT, viewHeight - PICKER_BODY_MARGIN);
+    const bodyHeight = Math.round(Math.min(PICKER_BODY_HEIGHT, maxBodyHeight));
     const rawFont = PICKER_BASE_FONT * (width / PICKER_BASE_WIDTH);
     const fontSize = Math.round(Math.min(PICKER_MAX_FONT, Math.max(PICKER_MIN_FONT, rawFont)) * 10) / 10;
     return { width, left, bodyHeight, fontSize };
@@ -3146,17 +3185,27 @@ function presetSnapshot(node) {
 }
 
 function applyPresetRows(node, rows, mode) {
-    const next = (rows || [])
+    const next = [];
+    (rows || [])
         .filter((raw) => String(raw?.name || "").trim())
-        .map((raw) => makeRow({
-        name: typeof raw?.name === "string" ? raw.name : "",
-        enabled: raw?.enabled !== false,
-        strength: finiteStrength(raw?.strength, 1),
-        trigger_words: typeof raw?.trigger_words === "string" ? raw.trigger_words : "",
-        expanded: false,
-    }));
+        .forEach((raw) => {
+            const entry = makeRow({
+                name: typeof raw?.name === "string" ? raw.name : "",
+                enabled: raw?.enabled !== false,
+                strength: finiteStrength(raw?.strength, 1),
+                trigger_words: typeof raw?.trigger_words === "string" ? raw.trigger_words : "",
+                expanded: false,
+            });
+            const existing = next.find((item) => item.name === entry.name);
+            if (existing) next[next.indexOf(existing)] = entry;
+            else next.push(entry);
+        });
     if (mode === "append") {
-        node._zllRows = [...(node._zllRows || []), ...next];
+        const current = node._zllRows || [];
+        node._zllRows = [
+            ...current,
+            ...next.filter((entry) => !current.some((item) => item.name === entry.name)),
+        ];
     } else {
         node._zllRows = next;
     }

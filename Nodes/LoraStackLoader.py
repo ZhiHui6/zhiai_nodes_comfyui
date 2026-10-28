@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 
 import comfy.sd
 import comfy.utils
 import folder_paths
+
+logger = logging.getLogger(__name__)
 
 
 def _coerce_rows(value):
@@ -27,13 +30,20 @@ def _coerce_rows(value):
     return rows
 
 
+def _is_enabled(row):
+    value = row.get("enabled", True)
+    if isinstance(value, str):
+        return value.strip().lower() not in ("", "0", "false", "no", "off")
+    return bool(value)
+
+
 def _row_names(value):
-    names = []
-    for row in _coerce_rows(value):
-        if not isinstance(row, dict):
-            continue
-        names.append(str(row.get("name") or "").strip())
-    return names
+    """Names that will actually be applied.
+
+    Disabled rows and rows with a zero strength are skipped, so a stale row
+    never blocks queueing or gets counted as an active LoRA.
+    """
+    return [name for name, _ in _entries(value)]
 
 
 def _strength(value):
@@ -46,15 +56,28 @@ def _strength(value):
 
 def _entries(value):
     entries = []
+    seen = {}
     for row in _coerce_rows(value):
         if not isinstance(row, dict):
             continue
         name = str(row.get("name") or "").strip()
-        if not row.get("enabled", True):
+        if not name or not _is_enabled(row):
             continue
         strength = _strength(row.get("strength", 1.0))
         if strength == 0:
             continue
+        if name in seen:
+            previous = entries[seen[name]]
+            logger.warning(
+                "LoRA Stack Loader: duplicate row %r (strength %s -> %s); "
+                "keeping the last occurrence so the LoRA is applied once.",
+                name,
+                previous[1],
+                strength,
+            )
+            entries[seen[name]] = (name, strength)
+            continue
+        seen[name] = len(entries)
         entries.append((name, strength))
     return entries
 
@@ -64,7 +87,7 @@ def _trigger_words(value):
     for row in _coerce_rows(value):
         if not isinstance(row, dict):
             continue
-        if not row.get("enabled", True):
+        if not _is_enabled(row):
             continue
         if _strength(row.get("strength", 1.0)) == 0:
             continue
@@ -80,10 +103,6 @@ class LoraStackLoader:
     RETURN_TYPES = ("MODEL", "STRING")
     RETURN_NAMES = ("model", "trigger_words")
     DESCRIPTION = "Applies a reorderable stack of LoRAs to MODEL in row order: toggle a row with its checkbox, drag the handle to reorder, click a row to select it, and swap models from the row's More panel. Strength steps by 0.05 with the side arrows or accepts direct input (-50 to 50). The More panel holds trigger words and one-click copy, and lets you save the whole stack as a preset for later. Outputs the enabled rows' trigger words joined by commas."
-
-    def __init__(self):
-        self.loaded_lora = None
-        self._names = frozenset()
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -101,57 +120,42 @@ class LoraStackLoader:
         except ValueError as exc:
             return str(exc)
         try:
-            available = set(folder_paths.get_filename_list("loras"))
+            available = {
+                name.replace("\\", "/")
+                for name in folder_paths.get_filename_list("loras")
+            }
         except Exception:
             return True
         for name in names:
-            if name not in available:
+            if name.replace("\\", "/") not in available:
                 return f"LoRA Stack Loader: LoRA not found: {name}"
         return True
 
     def load(self, model, lora_rows="[]"):
         triggers = _trigger_words(lora_rows)
         entries = _entries(lora_rows)
-        names = frozenset(name for name, _ in entries)
-        if not names:
-            self.loaded_lora = None
-            self._names = frozenset()
+        if not entries:
             return (model, triggers)
 
-        stable = names == self._names
-        if not stable:
-            self.loaded_lora = None
-
-        counts = {}
-        for name, _ in entries:
-            counts[name] = counts.get(name, 0) + 1
-        repeated = {name for name, count in counts.items() if count > 1}
+        # Load fresh every execution instead of caching the state dict on the
+        # node instance. A cached dict can outlive the file on disk (updated or
+        # replaced LoRA) and silently keep applying stale weights, which shows
+        # up as persistent style/texture contamination. Only rows in this run
+        # share a state dict, so duplicate rows are still read once.
         shared = {}
 
         for name, strength in entries:
             path = folder_paths.get_full_path_or_raise("loras", name)
-            lora = None
-            metadata = None
-            if stable and self.loaded_lora is not None and self.loaded_lora[0] == path:
-                _, lora, metadata = self.loaded_lora
-            elif path in shared:
-                lora, metadata = shared[path]
-                if stable:
-                    self.loaded_lora = (path, lora, metadata)
-            else:
-                lora, metadata = comfy.utils.load_torch_file(path, safe_load=True, return_metadata=True)
-                if name in repeated:
-                    shared[path] = (lora, metadata)
-                if stable:
-                    self.loaded_lora = (path, lora, metadata)
-            model, _ = comfy.sd.load_lora_for_models(
-                model,
-                None,
-                lora,
+            lora = shared.get(path)
+            if lora is None:
+                lora = comfy.utils.load_torch_file(path, safe_load=True)
+                shared[path] = lora
+            logger.info(
+                "LoRA Stack Loader: applying %s (strength %.3f) from %s",
+                name,
                 strength,
-                strength,
-                lora_metadata=metadata,
+                path,
             )
+            model, _ = comfy.sd.load_lora_for_models(model, None, lora, strength, 0)
 
-        self._names = names
         return (model, triggers)
