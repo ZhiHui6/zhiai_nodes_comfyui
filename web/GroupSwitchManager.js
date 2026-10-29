@@ -370,7 +370,7 @@ app.registerExtension({
             this._processingStack = new Set();
             this._draggedGroup = null;
             this._gmmDragging = false;
-            this.size = [400, 500];
+            this.size = [220, 250];
             this._gmmHelp = false;
             this._gmmHelpElement = null;
             this._gmmHelpLocale = getLocale();
@@ -488,7 +488,7 @@ app.registerExtension({
                 }
 
                 .gmm-groups-header {
-                    height: 20px;
+                    height: 25px;
                     padding: 0 8px;
                     display: flex;
                     align-items: center;
@@ -708,7 +708,7 @@ app.registerExtension({
 
                 .gmm-mode-indicator {
                     margin-right: auto;
-                    font-size: 9.5px;
+                    font-size: 11.5px;
                     color: #93C5FD;
                     font-weight: 600;
                     letter-spacing: 0.01em;
@@ -989,10 +989,10 @@ app.registerExtension({
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%) scale(0.96);
-                    background: rgba(5, 11, 22, 0.88);
-                    border: 1px solid #2C5080;
+                    background: rgba(23, 36, 58, 0.94);
+                    border: 1px solid #34577F;
                     border-radius: 12px;
-                    box-shadow: 0 34px 90px rgba(2, 6, 23, 0.66), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+                    box-shadow: 0 34px 90px rgba(2, 6, 23, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
                     backdrop-filter: blur(18px) saturate(1.5);
                     -webkit-backdrop-filter: blur(18px) saturate(1.5);
                     padding: 14px;
@@ -1040,12 +1040,12 @@ app.registerExtension({
                     justify-content: space-between;
                     margin-bottom: 12px;
                     padding-bottom: 10px;
-                    border-bottom: 1px solid #2C5080;
+                    border-bottom: 1px solid #34577F;
                 }
 
                 .gmm-dialog-header h3 {
                     margin: 0;
-                    font-size: 13.5px;
+                    font-size: 14.5px;
                     font-weight: 600;
                     color: #F2FAFF;
                     flex: 1;
@@ -1089,6 +1089,8 @@ app.registerExtension({
                     position: fixed;
                     inset: 0;
                     background: rgba(2, 6, 23, 0.55);
+                    backdrop-filter: blur(6px) saturate(1.15);
+                    -webkit-backdrop-filter: blur(6px) saturate(1.15);
                     z-index: 9999;
                     animation: gmmBackdropIn 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
                 }
@@ -1228,7 +1230,7 @@ app.registerExtension({
                     gap: 8px;
                     margin-top: 12px;
                     padding-top: 10px;
-                    border-top: 1px solid #2C5080;
+                    border-top: 1px solid #34577F;
                 }
 
                 .gmm-button {
@@ -1270,10 +1272,10 @@ app.registerExtension({
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%) scale(0.96);
-                    background: rgba(5, 11, 22, 0.88);
-                    border: 1px solid #2C5080;
+                    background: rgba(23, 36, 58, 0.94);
+                    border: 1px solid #34577F;
                     border-radius: 12px;
-                    box-shadow: 0 34px 90px rgba(2, 6, 23, 0.66), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+                    box-shadow: 0 34px 90px rgba(2, 6, 23, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
                     backdrop-filter: blur(18px) saturate(1.5);
                     -webkit-backdrop-filter: blur(18px) saturate(1.5);
                     padding: 14px;
@@ -1284,8 +1286,8 @@ app.registerExtension({
                     animation: gmmDialogShow 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
                     color: #DDE9F5;
                     font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
-                    font-size: 13.5px;
-                    line-height: 1.5;
+                    font-size: 14px;
+                    line-height: 1.55;
                     box-sizing: border-box;
                 }
 
@@ -1300,12 +1302,12 @@ app.registerExtension({
                 }
 
                 .gmm-settings-dialog-title {
-                    font-size: 13.5px;
+                    font-size: 14.5px;
                     font-weight: 600;
                     color: #F2FAFF;
                     margin: 0 0 10px 0;
                     padding-bottom: 10px;
-                    border-bottom: 1px solid #2C5080;
+                    border-bottom: 1px solid #34577F;
                 }
 
                 .gmm-settings-dialog-item {
@@ -1316,9 +1318,9 @@ app.registerExtension({
                 }
 
                 .gmm-settings-dialog-label {
-                    font-size: 12.5px;
-                    color: #B4C7DE;
-                    font-weight: 500;
+                    font-size: 13.5px;
+                    color: #C6D8EC;
+                    font-weight: 700;
                     letter-spacing: 0.01em;
                     flex: 0 0 auto;
                     width: 120px;

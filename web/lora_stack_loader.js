@@ -2,6 +2,7 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { applyNode, getLocale } from "./zhiai_i18n.js";
 import { attachMiddleDragPan, watchNodeModeVisual } from "./panel_kit.js";
+import { drawNodeSettingsButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 
 const NODE_CLASS = "LoraStackLoader";const ROWS_WIDGET = "lora_rows";
 const PANEL_WIDGET = "zhiai_lora_stack_panel";
@@ -17,7 +18,8 @@ const MIN_WIDTH = 320;
 const INIT_WIDTH = 520;
 const INIT_HEIGHT = 240;
 const STRENGTH_STEP = 0.05;
-const STRENGTH_LIMIT = 50;
+const STRENGTH_MIN_DEFAULT = -10;
+const STRENGTH_MAX_DEFAULT = 10;
 const MIN_PANEL_HEIGHT = 200;
 const DRAG_THRESHOLD = 3;
 const TIP_DELAY = 1000;
@@ -33,6 +35,9 @@ const PICKER_EDGE = 8;
 const PICKER_BODY_HEIGHT = 360;
 const PICKER_BODY_MIN_HEIGHT = 360;
 const PICKER_BODY_MARGIN = 140;
+const TITLE_ICON_SIZE = 24;
+const TITLE_ICON_MARGIN = 4;
+const TITLE_ICON_GAP = 4;
 
 const i18n = {
     zh: {
@@ -86,6 +91,18 @@ const i18n = {
         presetFooterRecipes: "共 {count} 个配方",
         presetFooterRows: "当前 {count} 项",
         presetFooterHint: "悬停配方可预览其内容",
+        settings: "设置",
+        settingsPreview: "预览缩略图",
+        settingsPreviewDesc: "关闭后，添加 LoRA 面板右侧的预览区域将被隐藏。",
+        settingsStrengthRange: "权重范围",
+        settingsStrengthRangeDesc: "设置强度可输入与步进的最小值和最大值，超出范围的数值会自动收拢到边界。",
+        settingsStrengthReset: "恢复默认",
+        settingsMultiSelect: "批量添加 LoRA",
+        settingsMultiSelectDesc: "开启后，添加 LoRA 面板中可同时勾选多个模型并一键批量载入。",
+        pickerBatchHint: "悬停预览，点击勾选多个模型；↑↓ 移动，空格勾选，Enter 批量添加",
+        pickerBatchAdd: "批量添加",
+        pickerBatchCount: "已选 {count} 项",
+        pickerBatchDuplicate: "所选 LoRA 均已在列表中",
     },
     en: {
         toggleAll: "Toggle all",
@@ -138,6 +155,18 @@ const i18n = {
         presetFooterRecipes: "{count} recipes",
         presetFooterRows: "{count} current",
         presetFooterHint: "Hover a recipe to preview its contents",
+        settings: "Settings",
+        settingsPreview: "Preview thumbnail",
+        settingsPreviewDesc: "When off, the preview pane in the Add LoRA panel is hidden.",
+        settingsStrengthRange: "Weight range",
+        settingsStrengthRangeDesc: "Set the minimum and maximum for strength input and stepping; values outside the range are clamped to the bounds.",
+        settingsStrengthReset: "Reset",
+        settingsMultiSelect: "Batch add LoRAs",
+        settingsMultiSelectDesc: "When on, you can check multiple models in the Add LoRA panel and load them all at once.",
+        pickerBatchHint: "Hover to preview, click to check multiple models; ↑↓ to move, Space to check, Enter to add all",
+        pickerBatchAdd: "Add selected",
+        pickerBatchCount: "{count} selected",
+        pickerBatchDuplicate: "All selected LoRAs are already in the list",
     },
 };
 
@@ -907,8 +936,9 @@ const STYLE_TEXT = `
     box-shadow: inset 0 1px 0 rgba(147, 197, 253, 0.12);
 }
 .zll-picker__search {
-    flex: 0 1 auto;
-    width: calc(var(--zll-picker-w, 460px) - clamp(208px, 38%, 320px) - 8px);
+    flex: 0 0 auto;
+    /* 右缘与预览列左侧的竖向分割线对齐，宽度固定不随状态变化 */
+    width: var(--zll-picker-search-w, calc(var(--zll-picker-w, 760px) - clamp(168px, 26%, 240px) - 25px));
     min-width: 0;
     height: 1.8em;
     padding: 0 0.6em;
@@ -1017,6 +1047,34 @@ const STYLE_TEXT = `
     background: rgba(59, 130, 246, 0.22);
     box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.45);
 }
+.zll-pick__check {
+    position: relative;
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    border: 1px solid rgba(147, 197, 253, 0.42);
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.9);
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+.zll-pick__row:hover .zll-pick__check {
+    border-color: rgba(147, 197, 253, 0.72);
+}
+.zll-pick__check[data-on="true"] {
+    border-color: #3B82F6;
+    background: #2563EB;
+}
+.zll-pick__check[data-on="true"]::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid #FFFFFF;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
 .zll-pick__meta {
     display: flex;
     flex-direction: row;
@@ -1096,6 +1154,44 @@ const STYLE_TEXT = `
     background: rgba(30, 48, 78, 0.55);
     color: #7C93B0;
     font-size: 0.84em;
+}
+.zll-picker__batch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-top: 1px solid rgba(96, 165, 250, 0.16);
+    background: rgba(24, 39, 64, 0.7);
+}
+.zll-picker__batch-count {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #A9BDD6;
+    font-size: 0.84em;
+}
+.zll-picker__batch-btn {
+    flex: 0 0 auto;
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid rgba(96, 165, 250, 0.5);
+    border-radius: 6px;
+    background: rgba(37, 99, 235, 0.85);
+    color: #FFFFFF;
+    font: inherit;
+    font-size: 0.84em;
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+.zll-picker__batch-btn:hover:not(:disabled) {
+    background: #2563EB;
+    border-color: #60A5FA;
+}
+.zll-picker__batch-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
 }
 .zll-preset-overlay {
     position: fixed;
@@ -1406,6 +1502,256 @@ const STYLE_TEXT = `
         transform: none;
     }
 }
+.zll-settings-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 10062;
+    display: flex;
+    flex-direction: column;
+    width: 340px;
+    max-width: calc(100vw - 24px);
+    padding: 14px;
+    border: 1px solid #34577F;
+    border-radius: 12px;
+    background: rgba(23, 36, 58, 0.94);
+    box-shadow: 0 34px 90px rgba(2, 6, 23, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    color: #DDE9F5;
+    font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+    animation: zll-settings-in 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.zll-settings-dialog.closing {
+    animation: zll-settings-out 140ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.zll-settings-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10061;
+    background: rgba(2, 6, 23, 0.55);
+    backdrop-filter: blur(6px) saturate(1.15);
+    -webkit-backdrop-filter: blur(6px) saturate(1.15);
+    animation: zll-settings-backdrop-in 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.zll-settings-backdrop.closing {
+    animation: zll-settings-backdrop-out 140ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.zll-settings__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #34577F;
+}
+.zll-settings__title {
+    margin: 0;
+    padding-right: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #F2FAFF;
+    font-size: 14.5px;
+    font-weight: 600;
+}
+.zll-settings__close {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 6px;
+    background: #DC2626;
+    color: #FFFFFF;
+    font-size: 14px;
+    line-height: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.zll-settings__close:hover {
+    background: #EF4444;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+.zll-settings__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: default;
+}
+.zll-settings__label {
+    color: #C6D8EC;
+    font-size: 13.5px;
+    font-weight: 700;
+}
+.zll-settings__desc {
+    margin: 8px 0 0;
+    color: #98AECC;
+    font-size: 13px;
+    line-height: 1.7;
+}
+.zll-settings__section {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(64, 104, 154, 0.7);
+}
+.zll-settings__section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.zll-settings__reset {
+    flex: 0 0 auto;
+    padding: 2px 10px;
+    border: 1px solid rgba(96, 165, 250, 0.28);
+    border-radius: 999px;
+    background: transparent;
+    color: #A6BAD5;
+    font: inherit;
+    font-size: 12.5px;
+    line-height: 1.6;
+    cursor: pointer;
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.zll-settings__reset:hover {
+    border-color: #3B82F6;
+    background: rgba(59, 130, 246, 0.16);
+    color: #60A5FA;
+}
+.zll-settings__range {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+}
+.zll-settings__stepper {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 30px;
+    padding: 0 4px;
+    border: 1px solid rgba(112, 152, 202, 0.32);
+    border-radius: 999px;
+    background: #181E2C;
+    box-sizing: border-box;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.zll-settings__stepper:hover {
+    border-color: rgba(147, 197, 253, 0.5);
+}
+.zll-settings__stepper:focus-within {
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.24);
+}
+.zll-settings__step {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: #93A9C4;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+.zll-settings__step:hover {
+    background: rgba(59, 130, 246, 0.22);
+    color: #60A5FA;
+}
+.zll-settings__step:active {
+    background: rgba(59, 130, 246, 0.38);
+    color: #93C5FD;
+}
+.zll-settings__num {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 24px;
+    padding: 0 2px;
+    border: none;
+    background: transparent;
+    color: #E8F2FB;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    outline: none;
+    box-sizing: border-box;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+.zll-settings__num::-webkit-outer-spin-button,
+.zll-settings__num::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.zll-settings__sep {
+    flex: 0 0 auto;
+    color: #93A9C4;
+    font-size: 13px;
+}
+.zll-settings__switch {
+    position: relative;
+    flex: 0 0 auto;
+    width: 38px;
+    height: 20px;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid rgba(96, 165, 250, 0.28);
+    border-radius: 999px;
+    background: rgba(30, 41, 59, 0.8);
+    cursor: pointer;
+    transition: background-color 160ms ease, border-color 160ms ease;
+}
+.zll-settings__switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #93A9C4;
+    transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), background-color 160ms ease;
+}
+.zll-settings__switch:checked {
+    background: rgba(37, 99, 235, 0.85);
+    border-color: #3B82F6;
+}
+.zll-settings__switch:checked::after {
+    transform: translateX(18px);
+    background: #FFFFFF;
+}
+@keyframes zll-settings-in {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes zll-settings-out {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    to { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+}
+@keyframes zll-settings-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes zll-settings-backdrop-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
 `;
 
 const HANDLE_ICON = '<svg viewBox="0 0 10 18" width="10" height="18" fill="currentColor" aria-hidden="true"><circle cx="2.5" cy="4" r="1.2"/><circle cx="7.5" cy="4" r="1.2"/><circle cx="2.5" cy="9" r="1.2"/><circle cx="7.5" cy="9" r="1.2"/><circle cx="2.5" cy="14" r="1.2"/><circle cx="7.5" cy="14" r="1.2"/></svg>';
@@ -1524,10 +1870,15 @@ function rowPayload(node) {
 }
 
 function uiState(node) {
+    const bounds = strengthBounds(node);
     return {
         version: UI_STATE_VERSION,
         instanceId: instanceIdFor(node),
         rows: rowPayload(node),
+        showPreview: node._zllShowPreview !== false,
+        strengthMin: bounds.min,
+        strengthMax: bounds.max,
+        multiSelect: node._zllMultiSelect === true,
     };
 }
 
@@ -1692,7 +2043,7 @@ function commitPendingStrength(node) {
     if (!row) return;
     const next = Number(active.value);
     if (!Number.isFinite(next)) return;
-    row.strength = round2(Math.max(-STRENGTH_LIMIT, Math.min(STRENGTH_LIMIT, next)));
+    row.strength = round2(clampStrength(node, next));
 }
 
 function writeExecutionRows(node, change = true) {
@@ -1725,6 +2076,15 @@ function writeUiState(node, dirty = true) {
 }
 
 function loadRows(node) {
+    const ui = node.properties?.[UI_PROPERTY];
+    node._zllShowPreview = ui?.showPreview !== false;
+    node._zllStrengthMin = typeof ui?.strengthMin === "number" && Number.isFinite(ui.strengthMin)
+        ? ui.strengthMin
+        : STRENGTH_MIN_DEFAULT;
+    node._zllStrengthMax = typeof ui?.strengthMax === "number" && Number.isFinite(ui.strengthMax)
+        ? ui.strengthMax
+        : STRENGTH_MAX_DEFAULT;
+    node._zllMultiSelect = ui?.multiSelect === true;
     const stored = storedRows(node);
     const widgetRows = parseExecutionRows(findWidget(node, ROWS_WIDGET)?.value);
     let snapshot = readDraft(node);
@@ -2076,7 +2436,7 @@ function toggleAll(node) {
 }
 
 function setStrength(node, row, value) {
-    const next = Math.max(-STRENGTH_LIMIT, Math.min(STRENGTH_LIMIT, finiteStrength(value, row.strength)));
+    const next = clampStrength(node, finiteStrength(value, row.strength));
     row.strength = next;
     updateStrengthInput(row);
     writeExecutionRows(node);
@@ -2093,7 +2453,7 @@ function commitTypedStrength(node, row, input) {
         input.value = strengthText(row.strength);
         return;
     }
-    row.strength = round2(Math.max(-STRENGTH_LIMIT, Math.min(STRENGTH_LIMIT, next)));
+    row.strength = round2(clampStrength(node, next));
     input.value = strengthText(row.strength);
     writeExecutionRows(node);
     resizeNode(node);
@@ -2355,11 +2715,14 @@ function renderRow(node, row) {
     const input = document.createElement("input");
     input.type = "number";
     input.step = String(STRENGTH_STEP);
+    const bounds = strengthBounds(node);
+    input.min = strengthText(bounds.min);
+    input.max = strengthText(bounds.max);
     input.value = strengthText(row.strength);
     input.addEventListener("input", () => {
         const next = Number(input.value);
         if (!Number.isFinite(next)) return;
-        row.strength = round2(Math.max(-STRENGTH_LIMIT, Math.min(STRENGTH_LIMIT, next)));
+        row.strength = round2(clampStrength(node, next));
     });
     input.addEventListener("change", () => commitTypedStrength(node, row, input));
     input.addEventListener("keydown", (event) => {
@@ -2649,7 +3012,8 @@ function hookDraw(node) {
     if (node._zllDrawHooked) return;
     node._zllDrawHooked = true;
     const previous = node.onDrawForeground;
-    node.onDrawForeground = function () {
+    node.onDrawForeground = function (ctx) {
+        const result = previous ? previous.apply(this, arguments) : undefined;
         const state = node._zllDraw;
         if (state) {
             const now = Date.now();
@@ -2675,7 +3039,17 @@ function hookDraw(node) {
                 }
             }
         }
-        return previous ? previous.apply(this, arguments) : undefined;
+        if (ctx && !node.flags?.collapsed) {
+            if (node._zllSettingsOpen && !document.querySelector(".zll-settings-dialog")) {
+                node._zllSettingsOpen = false;
+            }
+            ctx.save();
+            ctx.translate(settingsIconLeft(node), titleIconTop());
+            ctx.scale(TITLE_ICON_SIZE / 32, TITLE_ICON_SIZE / 32);
+            drawNodeSettingsButton(ctx, !!(node._zllSettingsOpen || node._zllSettingsHovered));
+            ctx.restore();
+        }
+        return result;
     };
 }
 
@@ -2767,6 +3141,8 @@ function previewUrl(item) {
 function updatePickerPreview() {
     if (!pickerState?.els) return;
     const els = pickerState.els;
+    // 设置中关闭预览后不创建预览元素，直接跳过
+    if (!els.frame || !els.nameLabel) return;
     const item = pickerState.selected;
     let baseName = "";
     if (item) {
@@ -2859,6 +3235,7 @@ function renderPickerItems() {
         updatePickerPreview();
         return;
     }
+    const multi = pickerState.multi === true;
     items.forEach((item) => {
         const rowEl = document.createElement("div");
         rowEl.className = "zll-pick__row";
@@ -2872,8 +3249,21 @@ function renderPickerItems() {
         rowEl.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            applyPickerSelection();
+            if (multi) {
+                selectPickerItem(item, false);
+                togglePickerCheck(item);
+            } else {
+                applyPickerSelection();
+            }
         });
+
+        if (multi) {
+            const checkEl = document.createElement("span");
+            checkEl.className = "zll-pick__check";
+            checkEl.dataset.on = pickerState.checked.has(item.name) ? "true" : "false";
+            rowEl.dataset.checked = checkEl.dataset.on;
+            rowEl.appendChild(checkEl);
+        }
 
         const meta = document.createElement("div");
         meta.className = "zll-pick__meta";
@@ -2940,7 +3330,7 @@ function applyPickerSelection() {
         if (existing) {
             node._zllScrollUid = existing.uid;
         } else {
-            const newRow = makeRow({ name: selected.name, enabled: true, strength: 1, trigger_words: "", expanded: false });
+            const newRow = makeRow({ name: selected.name, enabled: true, strength: round2(clampStrength(node, 1)), trigger_words: "", expanded: false });
             node._zllRows.push(newRow);
             node._zllScrollUid = newRow.uid;
         }
@@ -2949,6 +3339,74 @@ function applyPickerSelection() {
     writeExecutionRows(node);
     closePicker();
     renderRows(node);
+}
+
+function updatePickerBatchBar() {
+    const els = pickerState?.els;
+    if (!els?.batchCount || !els.batchBtn) return;
+    const count = pickerState.checked?.size || 0;
+    els.batchCount.textContent = $t("pickerBatchCount").replace("{count}", String(count));
+    els.batchBtn.disabled = count === 0;
+}
+
+function togglePickerCheck(item) {
+    if (!pickerState?.multi || !item) return;
+    const checked = pickerState.checked;
+    if (checked.has(item.name)) checked.delete(item.name);
+    else checked.add(item.name);
+    pickerState.els?.list.querySelectorAll(".zll-pick__row").forEach((rowEl) => {
+        const on = checked.has(rowEl.dataset.name) ? "true" : "false";
+        rowEl.dataset.checked = on;
+        const checkEl = rowEl.querySelector(".zll-pick__check");
+        if (checkEl) checkEl.dataset.on = on;
+    });
+    updatePickerBatchBar();
+}
+
+function applyPickerBatch() {
+    if (!pickerState) return;
+    const state = pickerState;
+    const { node, checked } = state;
+    if (!checked || !checked.size) return;
+    if (!Array.isArray(node._zllRows)) {
+        closePicker();
+        return;
+    }
+    const known = new Set(state.items.map((item) => item.name));
+    // 按列表显示顺序载入，勾选但已不存在的模型计为失败并跳过
+    const names = state.items.filter((item) => checked.has(item.name)).map((item) => item.name);
+    let added = 0;
+    let skipped = [...checked].filter((name) => !known.has(name)).length;
+    let firstUid = null;
+    names.forEach((name) => {
+        const existing = node._zllRows.find((item) => String(item.name) === String(name));
+        if (existing) {
+            // 重复加载：保留原条目，不新增
+            firstUid = firstUid ?? existing.uid;
+            skipped += 1;
+            return;
+        }
+        try {
+            const newRow = makeRow({ name, enabled: true, strength: round2(clampStrength(node, 1)), trigger_words: "", expanded: false });
+            node._zllRows.push(newRow);
+            firstUid = firstUid ?? newRow.uid;
+            added += 1;
+        } catch (_) {
+            skipped += 1;
+        }
+    });
+    if (!added) {
+        // 全部已在列表中（或加载失败）时保持面板打开并提示
+        if (state.els?.batchCount) state.els.batchCount.textContent = $t("pickerBatchDuplicate");
+        return;
+    }
+    node._zllScrollUid = firstUid;
+    writeUiState(node);
+    writeExecutionRows(node);
+    closePicker();
+    renderRows(node);
+    resizeNode(node);
+    if (skipped) console.info(`LoRA batch add: ${added} added, ${skipped} skipped`);
 }
 
 function pickerLayout() {
@@ -2976,6 +3434,10 @@ function positionPicker(anchor) {
     panel.style.setProperty("--zll-picker-w", `${layout.width}px`);
     panel.style.setProperty("--zll-picker-body-h", `${layout.bodyHeight}px`);
     panel.style.setProperty("--zll-picker-fs", `${layout.fontSize}px`);
+    // 搜索框宽度固定：右缘对齐预览列（.zll-picker__preview）左侧的竖向分割线
+    const panelWidth = panel.clientWidth || layout.width;
+    const previewWidth = Math.min(240, Math.max(168, panelWidth * 0.26));
+    panel.style.setProperty("--zll-picker-search-w", `${Math.max(120, Math.round(panelWidth - previewWidth - 25))}px`);
     const rect = anchor?.getBoundingClientRect?.() || { left: 8, top: 8, bottom: 8, right: 8, width: 0, height: 0 };
     const width = panel.offsetWidth || layout.width;
     const height = panel.offsetHeight || 420;
@@ -2993,6 +3455,8 @@ function positionPicker(anchor) {
 }
 
 function buildPicker(node, row, overlay, panel) {
+    const showPreview = pickerPreviewEnabled(node);
+    panel.dataset.preview = showPreview ? "on" : "off";
     const head = document.createElement("div");
     head.className = "zll-picker__head";
     const search = document.createElement("input");
@@ -3022,32 +3486,64 @@ function buildPicker(node, row, overlay, panel) {
     const list = document.createElement("div");
     list.className = "zll-pick__list";
     list.addEventListener("wheel", (event) => event.stopPropagation(), { passive: true });
-    const preview = document.createElement("div");
-    preview.className = "zll-picker__preview";
-    const frame = document.createElement("div");
-    frame.className = "zll-picker__frame";
-    const empty = document.createElement("div");
-    empty.className = "zll-picker__empty";
-    empty.textContent = $t("noPreview");
-    frame.appendChild(empty);
-    const nameLabel = document.createElement("div");
-    nameLabel.className = "zll-picker__namelabel";
-    preview.appendChild(frame);
-    preview.appendChild(nameLabel);
+    let preview = null;
+    let frame = null;
+    let empty = null;
+    let nameLabel = null;
+    if (showPreview) {
+        preview = document.createElement("div");
+        preview.className = "zll-picker__preview";
+        frame = document.createElement("div");
+        frame.className = "zll-picker__frame";
+        empty = document.createElement("div");
+        empty.className = "zll-picker__empty";
+        empty.textContent = $t("noPreview");
+        frame.appendChild(empty);
+        nameLabel = document.createElement("div");
+        nameLabel.className = "zll-picker__namelabel";
+        preview.appendChild(frame);
+        preview.appendChild(nameLabel);
+    }
     body.appendChild(list);
-    body.appendChild(preview);
+    if (preview) body.appendChild(preview);
+
+    const multi = pickerState?.multi === true;
+    let batch = null;
+    let batchCount = null;
+    let batchBtn = null;
+    if (multi) {
+        batch = document.createElement("div");
+        batch.className = "zll-picker__batch";
+        batchCount = document.createElement("span");
+        batchCount.className = "zll-picker__batch-count";
+        batchBtn = document.createElement("button");
+        batchBtn.type = "button";
+        batchBtn.className = "zll-picker__batch-btn";
+        batchBtn.textContent = $t("pickerBatchAdd");
+        batchBtn.disabled = true;
+        batchBtn.addEventListener("pointerdown", stopPointer);
+        batchBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            applyPickerBatch();
+        });
+        batch.appendChild(batchCount);
+        batch.appendChild(batchBtn);
+    }
 
     const hint = document.createElement("div");
     hint.className = "zll-picker__hint";
-    hint.textContent = $t("pickerHint");
+    hint.textContent = $t(multi ? "pickerBatchHint" : "pickerHint");
 
     panel.appendChild(head);
     panel.appendChild(filters);
     panel.appendChild(body);
+    if (batch) panel.appendChild(batch);
     panel.appendChild(hint);
 
-    pickerState.els = { search, filters, list, frame, empty, nameLabel };
+    pickerState.els = { search, filters, list, frame, empty, nameLabel, batch, batchCount, batchBtn };
     renderPickerFilters();
+    updatePickerBatchBar();
 
     panel.addEventListener("keydown", (event) => {
         event.stopPropagation();
@@ -3061,9 +3557,15 @@ function buildPicker(node, row, overlay, panel) {
             movePickerSelection(event.key === "ArrowDown" ? 1 : -1);
             return;
         }
+        if (multi && event.key === " " && event.target !== search) {
+            event.preventDefault();
+            togglePickerCheck(pickerState?.selected);
+            return;
+        }
         if (event.key === "Enter") {
             event.preventDefault();
-            applyPickerSelection();
+            if (multi) applyPickerBatch();
+            else applyPickerSelection();
         }
     });
 
@@ -3094,12 +3596,17 @@ function openPicker(node, row, anchor) {
     panel.className = "zll-picker";
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
+    // 批量模式仅用于新增；更换模型时始终单选
+    const multi = !row && node._zllMultiSelect === true;
+    if (multi) panel.dataset.multi = "true";
     pickerState = {
         node,
         row,
         anchor,
         overlay,
         panel,
+        multi,
+        checked: new Set(),
         items: [],
         visibleItems: [],
         folder: "all",
@@ -3192,7 +3699,7 @@ function applyPresetRows(node, rows, mode) {
             const entry = makeRow({
                 name: typeof raw?.name === "string" ? raw.name : "",
                 enabled: raw?.enabled !== false,
-                strength: finiteStrength(raw?.strength, 1),
+                strength: round2(clampStrength(node, finiteStrength(raw?.strength, 1))),
                 trigger_words: typeof raw?.trigger_words === "string" ? raw.trigger_words : "",
                 expanded: false,
             });
@@ -3525,6 +4032,191 @@ function openPresetPanel(node, anchor) {
     });
 }
 
+function pickerPreviewEnabled(node) {
+    return node._zllShowPreview !== false;
+}
+
+function strengthBounds(node) {
+    let min = node._zllStrengthMin;
+    let max = node._zllStrengthMax;
+    if (typeof min !== "number" || !Number.isFinite(min)) min = STRENGTH_MIN_DEFAULT;
+    if (typeof max !== "number" || !Number.isFinite(max)) max = STRENGTH_MAX_DEFAULT;
+    if (min > max) [min, max] = [max, min];
+    return { min, max };
+}
+
+function clampStrength(node, value) {
+    const { min, max } = strengthBounds(node);
+    return Math.max(min, Math.min(max, value));
+}
+
+function refreshStrengthBounds(node) {
+    const { min, max } = strengthBounds(node);
+    let changed = false;
+    (node._zllRows || []).forEach((row) => {
+        if (row._strengthInput) {
+            row._strengthInput.min = strengthText(min);
+            row._strengthInput.max = strengthText(max);
+        }
+        const next = round2(clampStrength(node, finiteStrength(row.strength, 0)));
+        if (next !== row.strength) {
+            row.strength = next;
+            changed = true;
+        }
+        updateStrengthInput(row);
+    });
+    writeExecutionRows(node);
+    writeUiState(node);
+    if (changed) resizeNode(node);
+}
+
+function settingsIconLeft(node) {
+    // 帮助"?"图标位于节点右侧，本图标紧邻其左侧
+    const helpX = node.size[0] - TITLE_ICON_SIZE - TITLE_ICON_MARGIN;
+    return helpX - TITLE_ICON_SIZE - TITLE_ICON_GAP;
+}
+
+function titleIconTop() {
+    return -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - TITLE_ICON_SIZE) / 2;
+}
+
+function hitSettingsIcon(node, localPos) {
+    if (!localPos || node.flags?.collapsed) return false;
+    const left = settingsIconLeft(node);
+    const top = titleIconTop();
+    return localPos[0] > left && localPos[0] < left + TITLE_ICON_SIZE
+        && localPos[1] > top && localPos[1] < top + TITLE_ICON_SIZE;
+}
+
+function showSettingsDialog(node) {
+    if (document.querySelector(".zll-settings-dialog:not(.closing)")) return;
+    node._zllSettingsOpen = true;
+    node.setDirtyCanvas?.(true, true);
+
+    const bounds = strengthBounds(node);
+    const dialog = document.createElement("div");
+    dialog.className = "zll-settings-dialog";
+    dialog.innerHTML =
+        '<div class="zll-settings__head">' +
+            `<h3 class="zll-settings__title">${$t("settings")}</h3>` +
+            `<button type="button" class="zll-settings__close" title="${$t("close")}">×</button>` +
+        '</div>' +
+        '<div class="zll-settings__body">' +
+            '<div class="zll-settings__row">' +
+                `<span class="zll-settings__label">${$t("settingsPreview")}</span>` +
+                `<input type="checkbox" class="zll-settings__switch" ${pickerPreviewEnabled(node) ? "checked" : ""}>` +
+            '</div>' +
+            `<p class="zll-settings__desc">${$t("settingsPreviewDesc")}</p>` +
+            '<div class="zll-settings__section">' +
+                '<div class="zll-settings__row">' +
+                    `<span class="zll-settings__label">${$t("settingsMultiSelect")}</span>` +
+                    `<input type="checkbox" class="zll-settings__switch" data-role="multi-select" ${node._zllMultiSelect === true ? "checked" : ""}>` +
+                '</div>' +
+                `<p class="zll-settings__desc">${$t("settingsMultiSelectDesc")}</p>` +
+            '</div>' +
+            '<div class="zll-settings__section">' +
+                '<div class="zll-settings__section-head">' +
+                    `<span class="zll-settings__label">${$t("settingsStrengthRange")}</span>` +
+                    `<button type="button" class="zll-settings__reset">${$t("settingsStrengthReset")}</button>` +
+                '</div>' +
+                '<div class="zll-settings__range">' +
+                    '<div class="zll-settings__stepper">' +
+                        '<button type="button" class="zll-settings__step" data-target="strength-min" data-dir="-1" aria-label="−">−</button>' +
+                        `<input type="number" class="zll-settings__num" data-role="strength-min" step="${STRENGTH_STEP}" value="${strengthText(bounds.min)}">` +
+                        '<button type="button" class="zll-settings__step" data-target="strength-min" data-dir="1" aria-label="+">+</button>' +
+                    '</div>' +
+                    '<span class="zll-settings__sep">~</span>' +
+                    '<div class="zll-settings__stepper">' +
+                        '<button type="button" class="zll-settings__step" data-target="strength-max" data-dir="-1" aria-label="−">−</button>' +
+                        `<input type="number" class="zll-settings__num" data-role="strength-max" step="${STRENGTH_STEP}" value="${strengthText(bounds.max)}">` +
+                        '<button type="button" class="zll-settings__step" data-target="strength-max" data-dir="1" aria-label="+">+</button>' +
+                    '</div>' +
+                '</div>' +
+                `<p class="zll-settings__desc">${$t("settingsStrengthRangeDesc")}</p>` +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(dialog);
+
+    const backdrop = document.createElement("div");
+    backdrop.className = "zll-settings-backdrop";
+    document.body.insertBefore(backdrop, dialog);
+
+    let commitRange = null;
+    const closeDialog = () => {
+        if (dialog.classList.contains("closing")) return;
+        // 关闭前提交尚未触发的输入，避免 ESC 直接退出丢失范围设置
+        commitRange?.();
+        dialog.classList.add("closing");
+        backdrop.classList.add("closing");
+        node._zllSettingsOpen = false;
+        node.setDirtyCanvas?.(true, true);
+        document.removeEventListener("keydown", onKeyDown, true);
+        window.setTimeout(() => {
+            dialog.remove();
+            backdrop.remove();
+        }, 200);
+    };
+
+    // 仅允许通过 ESC 或关闭按钮关闭弹窗，不响应外部点击
+    const onKeyDown = (event) => {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            closeDialog();
+        }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+
+    dialog.querySelector(".zll-settings__close").addEventListener("click", closeDialog);
+    dialog.querySelector(".zll-settings__switch").addEventListener("change", (event) => {
+        node._zllShowPreview = event.target.checked;
+        writeUiState(node);
+    });
+    dialog.querySelector('[data-role="multi-select"]').addEventListener("change", (event) => {
+        node._zllMultiSelect = event.target.checked;
+        writeUiState(node);
+    });
+
+    const minInput = dialog.querySelector('[data-role="strength-min"]');
+    const maxInput = dialog.querySelector('[data-role="strength-max"]');
+    commitRange = () => {
+        let min = Number(minInput.value);
+        let max = Number(maxInput.value);
+        if (!Number.isFinite(min)) min = STRENGTH_MIN_DEFAULT;
+        if (!Number.isFinite(max)) max = STRENGTH_MAX_DEFAULT;
+        if (min > max) [min, max] = [max, min];
+        node._zllStrengthMin = min;
+        node._zllStrengthMax = max;
+        minInput.value = strengthText(min);
+        maxInput.value = strengthText(max);
+        refreshStrengthBounds(node);
+    };
+    [minInput, maxInput].forEach((input) => {
+        input.addEventListener("change", commitRange);
+        input.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                input.blur();
+            }
+            event.stopPropagation();
+        });
+    });
+    dialog.querySelectorAll(".zll-settings__step").forEach((button) => {
+        button.addEventListener("click", () => {
+            const input = button.dataset.target === "strength-min" ? minInput : maxInput;
+            const current = Number(input.value);
+            const base = Number.isFinite(current) ? current : 0;
+            input.value = strengthText(round2(base + Number(button.dataset.dir) * STRENGTH_STEP));
+            commitRange();
+        });
+    });
+    dialog.querySelector(".zll-settings__reset").addEventListener("click", () => {
+        minInput.value = strengthText(STRENGTH_MIN_DEFAULT);
+        maxInput.value = strengthText(STRENGTH_MAX_DEFAULT);
+        commitRange();
+    });
+}
+
 app.registerExtension({
     name: "zhiai_nodes.LoraStackLoader",
     async beforeRegisterNodeDef(nodeType, nodeData) {
@@ -3605,6 +4297,40 @@ app.registerExtension({
             this._zllRows = null;
             this._zllWidget = null;
             this._zllDrawHooked = false;
+        };
+
+        // 标题栏「设置」图标（帮助"?"图标左侧）
+        const onMouseDown = nodeType.prototype.onMouseDown;
+        nodeType.prototype.onMouseDown = function (e, localPos) {
+            if (hitSettingsIcon(this, localPos)) {
+                hideTitleTip();
+                showSettingsDialog(this);
+                return true;
+            }
+            return onMouseDown ? onMouseDown.apply(this, arguments) : undefined;
+        };
+
+        const onMouseMove = nodeType.prototype.onMouseMove;
+        nodeType.prototype.onMouseMove = function (e, localPos) {
+            const result = onMouseMove ? onMouseMove.apply(this, arguments) : undefined;
+            const hovered = hitSettingsIcon(this, localPos);
+            if (hovered !== this._zllSettingsHovered) {
+                this._zllSettingsHovered = hovered;
+                this.setDirtyCanvas?.(true, true);
+            }
+            titleTipHovered(hovered, $t("settings"), e);
+            return result;
+        };
+
+        const onMouseLeave = nodeType.prototype.onMouseLeave;
+        nodeType.prototype.onMouseLeave = function () {
+            const result = onMouseLeave ? onMouseLeave.apply(this, arguments) : undefined;
+            if (this._zllSettingsHovered) {
+                this._zllSettingsHovered = false;
+                this.setDirtyCanvas?.(true, true);
+            }
+            hideTitleTip();
+            return result;
         };
     },
 });
