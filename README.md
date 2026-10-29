@@ -188,22 +188,6 @@
 </td>
 </tr>
 <tr>
-<td><b>优先级文本切换</b><br><code>PriorityTextSwitch</code></td>
-<td>优先级文本切换节点：当同时接入文本A和文本B端口时，优先输出B端口；如果B端口为空或未连接，则输出文本A端口；如果两个端口都为空，则返回空字符串。
-
-<b>特点</b>：
-- <b>优先级控制</b>：文本B端口优先级高于文本A端口
-- <b>智能切换</b>：自动检测输入状态，空值时回退到A或输出空文本
-
-<br>
-<div align="left">
-<a href="images/Priority Text Switch.jpg" target="_blank">
-<img src="images/Priority Text Switch.jpg" alt="优先级文本切换" width="45%"/>
-</a>
-</div>
-</td>
-</tr>
-<tr>
 <td><b>多平台翻译</b><br><code>MultiPlatformTranslate</code></td>
 <td>
 
@@ -541,21 +525,6 @@
 </a>
 </div>
 </td>
-</tr>
-<tr>
-<td><b>优先级图像切换</b><br><code>PriorityImageSwitch</code></td>
-<td>智能优先级图像切换节点，当同时接入图像A和图像B端口时，优先输出B端口的内容；如果B端口无输入，则输出图像A端口的内容；如果两个端口都无输入，则弹出提示要求至少连接一个输入端口。
-
-<b>特点</b>：
-- <b>优先级控制</b>：图像B端口优先级高于图像A端口
-- <b>智能切换</b>：自动检测输入状态，无缝切换输出，减少手动切换操作
-
-<br>
-<div align="left">
-<a href="images/优先级图像切换.jpg" target="_blank">
-<img src="images/优先级图像切换.jpg" alt="优先级图像切换" width="45%"/>
-</a>
-</div></td>
 </tr>
 </table>
 

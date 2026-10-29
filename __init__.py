@@ -9,14 +9,12 @@ from .Nodes.TextMergerNode import TextMergerNode
 from .Nodes.TextModifier import TextModifier
 from .Nodes.TextExtractor import TextExtractor
 from .Nodes.TextSwitch.TextSwitchDualMode import TextSwitchDualMode
-from .Nodes.TextSwitch.PriorityTextSwitch import PriorityTextSwitch
 from .Nodes.ShowAny import ShowAny
 from .Nodes.MultiPlatformTranslate.MultiPlatformTranslate import MultiPlatformTranslate
 from .Nodes.MultiPlatformTranslate.MultiPlatformTranslateAPI import MultiPlatformTranslateAPI
 from .Nodes.PhotographPromptGen.PhotographPromptGenerator import PhotographPromptGenerator
 from .Nodes.ImageScaler import ImageScaler
 from .Nodes.ImgSwitch.ImageSwitchDualMode import ImageSwitchDualMode
-from .Nodes.ImgSwitch.PriorityImageSwitch import PriorityImageSwitch
 from .Nodes.ColorRemoval import ColorRemoval
 from .Nodes.MovieTools.LaplacianSharpen import LaplacianSharpen
 from .Nodes.MovieTools.SobelSharpen import SobelSharpen
@@ -70,13 +68,11 @@ NODE_CLASS_MAPPINGS = {
     "TextModifier": TextModifier,
     "TextExtractor": TextExtractor,
     "TextSwitchDualMode": TextSwitchDualMode,
-    "PriorityTextSwitch": PriorityTextSwitch,
     "ShowAny": ShowAny,
     "MultiPlatformTranslate": MultiPlatformTranslate,
     "PhotographPromptGenerator": PhotographPromptGenerator,
     "ImageScaler": ImageScaler,
     "ImageSwitchDualMode": ImageSwitchDualMode,
-    "PriorityImageSwitch": PriorityImageSwitch,
     "ColorRemoval": ColorRemoval,
     "LaplacianSharpen": LaplacianSharpen,
     "SobelSharpen": SobelSharpen,
@@ -126,13 +122,11 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "TextModifier": "Text Modifier",
     "TextExtractor": "Text Extractor",
     "TextSwitchDualMode": "Text Switch Dual Mode",
-    "PriorityTextSwitch": "Priority Text Switch",
     "ShowAny": "Show Any",
     "MultiPlatformTranslate": "Multi Platform Translate",
     "PhotographPromptGenerator": "Photograph Prompt Generator",
     "ImageScaler": "Image Scaler",
     "ImageSwitchDualMode": "Image Switch Dual Mode",
-    "PriorityImageSwitch": "Priority Image Switch",
     "ColorRemoval": "Color Removal",
     "LaplacianSharpen": "Laplacian Sharpen",
     "SobelSharpen": "Sobel Sharpen",
@@ -174,6 +168,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 from . import locale_api
 from . import preset_api
 from . import lora_preview_api
+from . import hardware_monitor_api
 from .Nodes.ZhiAIApiConfig import ZhiAIApiConfig  # noqa: F401
 
 WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")

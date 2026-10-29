@@ -452,45 +452,6 @@
             }
         }
     },
-    "PriorityImageSwitch": {
-        "display_name": "优先级图像切换器",
-        "description": "A、B 都有输入时优先输出 B，B 为空则输出 A，都为空则提示接线。",
-        "inputs": {
-            "mode": {
-                "name": "模式"
-            },
-            "imageA_note": {
-                "name": "图像A备注"
-            },
-            "imageB_note": {
-                "name": "图像B备注"
-            },
-            "imageA": {
-                "name": "图像A"
-            },
-            "imageB": {
-                "name": "图像B"
-            }
-        }
-    },
-    "PriorityTextSwitch": {
-        "display_name": "优先级文本切换器",
-        "description": "A、B 都有输入时优先输出 B，B 为空则输出 A，都为空则输出空文本。",
-        "inputs": {
-            "textA_note": {
-                "name": "文本A备注"
-            },
-            "textB_note": {
-                "name": "文本B备注"
-            },
-            "textA": {
-                "name": "文本A"
-            },
-            "textB": {
-                "name": "文本B"
-            }
-        }
-    },
     "LatentSwitchDualMode": {
         "display_name": "潜在空间切换器",
         "description": "在可变数量的潜变量输入间切换，支持手动选索引与自动取唯一非空项。",

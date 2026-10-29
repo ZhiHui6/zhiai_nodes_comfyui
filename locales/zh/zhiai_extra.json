@@ -68,16 +68,6 @@
             "output_image": "输出图像"
         }
     },
-    "PriorityImageSwitch": {
-        "outputs": {
-            "output_image": "输出图像"
-        }
-    },
-    "PriorityTextSwitch": {
-        "outputs": {
-            "output_text": "输出文本"
-        }
-    },
     "LatentSwitchDualMode": {
         "outputs": {
             "output_latent": "输出潜在空间"

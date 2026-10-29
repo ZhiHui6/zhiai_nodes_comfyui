@@ -1,5 +1,6 @@
 opencv-python
 openai>=1.0.0
 nvidia-ml-py
+psutil
 cryptography
 scikit-image

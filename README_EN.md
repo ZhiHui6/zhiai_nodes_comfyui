@@ -188,22 +188,6 @@ This node collection contains numerous nodes with different functionalities, div
 </td>
 </tr>
 <tr>
-<td><b>Priority Text Switch</b><br><code>PriorityTextSwitch</code></td>
-<td>Priority text switching node: When both text A and text B ports are connected, it prioritizes output from port B; if port B is empty or not connected, it outputs text from port A; if both ports are empty, it returns an empty string.
-
-<b>Features</b>:
-- <b>Priority Control</b>: Text B port has higher priority than text A port
-- <b>Intelligent Switching</b>: Automatically detects input status, falls back to A or outputs empty text when empty
-
-<br>
-<div align="left">
-<a href="images/Priority Text Switch.jpg" target="_blank">
-<img src="images/Priority Text Switch.jpg" alt="Priority Text Switch" width="45%"/>
-</a>
-</div>
-</td>
-</tr>
-<tr>
 <td><b>Multi-Platform Translation</b><br><code>MultiPlatformTranslate</code></td>
 <td>
 
@@ -528,21 +512,6 @@ Labels upstream images as Img 1…Img N (图1…图N in the Chinese UI) and prev
 </a>
 </div>
 </td>
-</tr>
-<tr>
-<td><b>Priority Image Switch</b><br><code>PriorityImageSwitch</code></td>
-<td>Intelligent priority image switching node that prioritizes output from port B when both image A and image B ports are connected; if port B has no input, it outputs the content of image A port; if both ports have no input, it prompts to connect at least one input port.
-
-<b>Features</b>:
-- <b>Priority Control</b>: Image B port has higher priority than image A port
-- <b>Intelligent Switching</b>: Automatically detects input status, seamlessly switches output, reducing manual switching operations
-
-<br>
-<div align="left">
-<a href="images/优先级图像切换.jpg" target="_blank">
-<img src="images/优先级图像切换.jpg" alt="Priority Image Switch" width="45%"/>
-</a>
-</div></td>
 </tr>
 </table>
 
