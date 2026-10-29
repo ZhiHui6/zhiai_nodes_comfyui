@@ -2,7 +2,8 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { applyNode, getLocale } from "./zhiai_i18n.js";
 import { attachMiddleDragPan, watchNodeModeVisual } from "./panel_kit.js";
-import { drawNodeSettingsButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
+import { drawNodeSettingsButton, drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
+import { createHelpPopupElement } from "./node_help_common.js";
 
 const NODE_CLASS = "LoraStackLoader";const ROWS_WIDGET = "lora_rows";
 const PANEL_WIDGET = "zhiai_lora_stack_panel";
@@ -92,6 +93,7 @@ const i18n = {
         presetFooterRows: "当前 {count} 项",
         presetFooterHint: "悬停配方可预览其内容",
         settings: "设置",
+        helpTip: "帮助",
         settingsPreview: "预览缩略图",
         settingsPreviewDesc: "关闭后，添加 LoRA 面板右侧的预览区域将被隐藏。",
         settingsStrengthRange: "权重范围",
@@ -156,6 +158,7 @@ const i18n = {
         presetFooterRows: "{count} current",
         presetFooterHint: "Hover a recipe to preview its contents",
         settings: "Settings",
+        helpTip: "Help",
         settingsPreview: "Preview thumbnail",
         settingsPreviewDesc: "When off, the preview pane in the Add LoRA panel is hidden.",
         settingsStrengthRange: "Weight range",
@@ -1793,6 +1796,208 @@ function $t(key) {
     return i18n[locale]?.[key] ?? i18n.en[key] ?? key;
 }
 
+// ===== 节点帮助：完全由 Web 端渲染分段内容，不依赖 docs/<节点名>/<语言>.md =====
+
+const HELP_TEXT = {
+    zh: {
+        title: "LoRA堆加载器",
+        sub: "标题栏「?」图标 · 使用说明",
+        sections: [
+            {
+                title: "行内操作",
+                items: [
+                    "勾选复选框启用或禁用该行",
+                    "拖动左侧把手调整顺序",
+                    "点击行可选中，在「更多设置」中更换或删除模型",
+                ],
+            },
+            {
+                title: "强度设置",
+                items: [
+                    "两侧箭头按 0.05 步进，也可直接输入数值",
+                    "允许范围默认 -10 到 10，可在「设置」中自定义或一键恢复默认",
+                ],
+            },
+            {
+                title: "添加 LoRA",
+                items: [
+                    "支持按名称搜索与文件夹筛选",
+                    "悬停条目可预览缩略图",
+                    "开启「批量添加 LoRA」后，可勾选多个模型一键载入，列表中已有的条目会自动跳过",
+                ],
+            },
+            {
+                title: "配方与触发词",
+                items: [
+                    "在「更多设置」中填写触发词，可一键复制",
+                    "整套结构可保存为配方，之后加载或追加",
+                ],
+            },
+            { title: "输出", items: ["输出启用行的触发词，以逗号拼接"] },
+        ],
+    },
+    en: {
+        title: "LoRA Stack Loader",
+        sub: "? icon in the title bar · usage guide",
+        sections: [
+            {
+                title: "Rows",
+                items: [
+                    "Check a row to enable or disable it",
+                    "Drag the handle to reorder rows",
+                    "Click a row to select it, then replace or delete the model from its More panel",
+                ],
+            },
+            {
+                title: "Strength",
+                items: [
+                    "Step by 0.05 with the side arrows, or type a value directly",
+                    "The allowed range defaults to -10 to 10 and can be customized or reset in Settings",
+                ],
+            },
+            {
+                title: "Add LoRA",
+                items: [
+                    "Search by name and filter by folder",
+                    "Hover an entry to preview its thumbnail",
+                    "With batch add enabled, check several models and load them at once; entries already in the list are skipped",
+                ],
+            },
+            {
+                title: "Recipes and trigger words",
+                items: [
+                    "Fill in trigger words in the More panel and copy them with one click",
+                    "Save the whole stack as a recipe, then load or append it later",
+                ],
+            },
+            { title: "Output", items: ["Trigger words of the enabled rows, joined by commas"] },
+        ],
+    },
+};
+
+const HELP_STYLE = {
+    title: "margin:0 0 4px 0;color:#93C5FD;font-size:18px;font-weight:600;letter-spacing:0.2px;",
+    sub: "margin:0 0 14px 0;padding-bottom:10px;border-bottom:1px solid rgba(147,197,253,0.2);color:#7C93B0;font-size:12px;",
+    heading: "margin:14px 0 6px 0;color:#60A5FA;font-size:14px;font-weight:600;letter-spacing:0.5px;",
+    list: "margin:0;padding-left:18px;color:#E2E8F0;list-style:disc outside;",
+    item: "margin:3px 0;",
+};
+
+function buildLoraHelpHtml() {
+    const text = HELP_TEXT[getLocale()] ?? HELP_TEXT.en;
+    const sections = text.sections
+        .map((section) =>
+            `<h4 style="${HELP_STYLE.heading}">${section.title}</h4>` +
+            `<ul style="${HELP_STYLE.list}">${section.items
+                .map((item) => `<li style="${HELP_STYLE.item}">${item}</li>`)
+                .join("")}</ul>`)
+        .join("");
+    return `<h3 style="${HELP_STYLE.title}">${text.title}</h3>` +
+        `<p style="${HELP_STYLE.sub}">${text.sub}</p>${sections}`;
+}
+
+const HELP_POPUP_GAP = 10;
+const HELP_EDGE_PAD = 8;
+
+let loraHelpPopup = null;
+let loraHelpNode = null;
+let loraHelpBound = false;
+
+function helpIconLeft(node) {
+    return node.size[0] - TITLE_ICON_SIZE - TITLE_ICON_MARGIN;
+}
+
+function hitHelpIcon(node, localPos) {
+    if (!localPos || node.flags?.collapsed) return false;
+    const left = helpIconLeft(node);
+    const top = titleIconTop();
+    return localPos[0] > left && localPos[0] < left + TITLE_ICON_SIZE
+        && localPos[1] > top && localPos[1] < top + TITLE_ICON_SIZE;
+}
+
+function closeLoraHelp() {
+    const node = loraHelpNode;
+    loraHelpNode = null;
+    loraHelpPopup?.remove();
+    loraHelpPopup = null;
+    if (node) {
+        node._zllHelpOpen = false;
+        node.setDirtyCanvas?.(true, true);
+    }
+}
+
+function openLoraHelp(node) {
+    closeLoraHelp();
+    node._zllHelpOpen = true;
+    loraHelpNode = node;
+    loraHelpPopup = createHelpPopupElement(buildLoraHelpHtml());
+    bindLoraHelpDismiss();
+    node.setDirtyCanvas?.(true, true);
+}
+
+function localPosFromEvent(node, event) {
+    const el = app.canvas?.canvas;
+    if (!el || !node) return null;
+    const rect = el.getBoundingClientRect();
+    const ds = app.canvas.ds ?? app.canvas;
+    const scale = typeof ds?.scale === "number" && ds.scale ? ds.scale : 1;
+    const offset = ds?.offset ?? [0, 0];
+    return [
+        (event.clientX - rect.left) / scale - (offset[0] ?? 0) - node.pos[0],
+        (event.clientY - rect.top) / scale - (offset[1] ?? 0) - node.pos[1],
+    ];
+}
+
+function bindLoraHelpDismiss() {
+    if (loraHelpBound) return;
+    loraHelpBound = true;
+    const dismiss = (event) => {
+        if (!loraHelpNode || !loraHelpPopup) return;
+        if (event.type === "pointerdown") {
+            if (loraHelpPopup.contains(event.target)) return;
+            // 命中帮助图标时交给 onMouseDown 处理切换，避免先关后开
+            if (hitHelpIcon(loraHelpNode, localPosFromEvent(loraHelpNode, event))) return;
+        }
+        closeLoraHelp();
+    };
+    window.addEventListener("pointerdown", dismiss, true);
+    window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") dismiss(event);
+    });
+}
+
+function placeLoraHelp(node, ctx) {
+    if (!loraHelpPopup || !ctx?.canvas) return;
+    const rect = ctx.canvas.getBoundingClientRect();
+    const scaleX = rect.width / ctx.canvas.width;
+    const scaleY = rect.height / ctx.canvas.height;
+    const transform = new DOMMatrix()
+        .scaleSelf(scaleX, scaleY)
+        .multiplySelf(ctx.getTransform())
+        .translateSelf(node.size[0] * scaleX * Math.max(1.0, window.devicePixelRatio), 0)
+        .translateSelf(HELP_POPUP_GAP, -32);
+
+    const bcr = app.canvas.canvas.getBoundingClientRect();
+    const w = loraHelpPopup.offsetWidth;
+    const h = loraHelpPopup.offsetHeight;
+
+    let left = transform.e + bcr.x;
+    if (left + w > window.innerWidth - HELP_EDGE_PAD) {
+        left = Math.max(HELP_EDGE_PAD, window.innerWidth - w - HELP_EDGE_PAD);
+    }
+    if (left < HELP_EDGE_PAD) left = HELP_EDGE_PAD;
+
+    let top = transform.f + bcr.y;
+    if (top + h > window.innerHeight - HELP_EDGE_PAD) {
+        top = Math.max(HELP_EDGE_PAD, window.innerHeight - h - HELP_EDGE_PAD);
+    }
+    if (top < HELP_EDGE_PAD) top = HELP_EDGE_PAD;
+
+    loraHelpPopup.style.left = `${left}px`;
+    loraHelpPopup.style.top = `${top}px`;
+}
+
+
 function installStyles() {
     if (document.getElementById("zhiai-lora-stack-style")) return;
     const style = document.createElement("style");
@@ -3085,6 +3290,17 @@ function hookDraw(node) {
             ctx.scale(TITLE_ICON_SIZE / 32, TITLE_ICON_SIZE / 32);
             drawNodeSettingsButton(ctx, !!(node._zllSettingsOpen || node._zllSettingsHovered));
             ctx.restore();
+
+            ctx.save();
+            ctx.translate(helpIconLeft(node), titleIconTop());
+            ctx.scale(TITLE_ICON_SIZE / 32, TITLE_ICON_SIZE / 32);
+            drawNodeHelpButton(ctx, !!(node._zllHelpOpen || node._zllHelpHovered));
+            ctx.restore();
+
+            if (node._zllHelpOpen) {
+                if (!loraHelpPopup || loraHelpNode !== node) openLoraHelp(node);
+                placeLoraHelp(node, ctx);
+            }
         }
         return result;
     };
@@ -4334,6 +4550,7 @@ app.registerExtension({
             onRemoved?.apply(this, arguments);
             writeHandoff(this);
             closePickerFor(this);
+            if (loraHelpNode === this) closeLoraHelp();
             this._zllRoot = null;
             this._zllEls = null;
             this._zllRows = null;
@@ -4341,11 +4558,18 @@ app.registerExtension({
             this._zllDrawHooked = false;
         };
 
-        // 标题栏「设置」图标（帮助"?"图标左侧）
+        // 标题栏「帮助 ?」图标（最右侧）与「设置」图标（其左侧）
         const onMouseDown = nodeType.prototype.onMouseDown;
         nodeType.prototype.onMouseDown = function (e, localPos) {
+            if (hitHelpIcon(this, localPos)) {
+                hideTitleTip();
+                if (this._zllHelpOpen) closeLoraHelp();
+                else openLoraHelp(this);
+                return true;
+            }
             if (hitSettingsIcon(this, localPos)) {
                 hideTitleTip();
+                closeLoraHelp();
                 showSettingsDialog(this);
                 return true;
             }
@@ -4355,18 +4579,29 @@ app.registerExtension({
         const onMouseMove = nodeType.prototype.onMouseMove;
         nodeType.prototype.onMouseMove = function (e, localPos) {
             const result = onMouseMove ? onMouseMove.apply(this, arguments) : undefined;
-            const hovered = hitSettingsIcon(this, localPos);
-            if (hovered !== this._zllSettingsHovered) {
-                this._zllSettingsHovered = hovered;
+            const helpHovered = hitHelpIcon(this, localPos);
+            const settingsHovered = !helpHovered && hitSettingsIcon(this, localPos);
+            if (helpHovered !== this._zllHelpHovered) {
+                this._zllHelpHovered = helpHovered;
                 this.setDirtyCanvas?.(true, true);
             }
-            titleTipHovered(hovered, $t("settings"), e);
+            if (settingsHovered !== this._zllSettingsHovered) {
+                this._zllSettingsHovered = settingsHovered;
+                this.setDirtyCanvas?.(true, true);
+            }
+            if (helpHovered) titleTipHovered(true, $t("helpTip"), e);
+            else if (settingsHovered) titleTipHovered(true, $t("settings"), e);
+            else titleTipHovered(false, "", e);
             return result;
         };
 
         const onMouseLeave = nodeType.prototype.onMouseLeave;
         nodeType.prototype.onMouseLeave = function () {
             const result = onMouseLeave ? onMouseLeave.apply(this, arguments) : undefined;
+            if (this._zllHelpHovered) {
+                this._zllHelpHovered = false;
+                this.setDirtyCanvas?.(true, true);
+            }
             if (this._zllSettingsHovered) {
                 this._zllSettingsHovered = false;
                 this.setDirtyCanvas?.(true, true);

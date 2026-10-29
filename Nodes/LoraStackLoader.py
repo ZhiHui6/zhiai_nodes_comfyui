@@ -104,16 +104,7 @@ class LoraStackLoader:
     RETURN_NAMES = ("model", "trigger_words")
     DESCRIPTION = (
         "Applies multiple LoRAs to MODEL in row order. "
-        "| Rows: check a row to enable or disable it, drag the handle to reorder, "
-        "click a row to select it, replace or delete models from the row's More panel. "
-        "| Strength: step by 0.05 with the side arrows or type a value directly; "
-        "the allowed range defaults to -10 to 10 and can be adjusted or reset in the node's Settings. "
-        "| Add LoRA: search models and filter by folder, hover for a preview thumbnail; "
-        "with batch add enabled in Settings, check several models and load them at once while "
-        "skipping entries already in the list. "
-        "| Recipes and trigger words: enter trigger words in the More panel and copy them with one click; "
-        "save the whole stack as a recipe to load or append it later. "
-        "| Output: trigger words of the enabled rows, joined by commas."
+        "Click the ? icon in the node title bar for the sectioned usage guide."
     )
 
     @classmethod

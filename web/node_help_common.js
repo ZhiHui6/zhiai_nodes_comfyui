@@ -16,6 +16,7 @@ const CUSTOM_HELP_TYPES = new Set([
     "ImageUnderstandingOnline",
     "TagSelector",
     "TextEditorWithContinue",
+    "LoraStackLoader",
 ]);
 
 const PACK_CATEGORY = /^zhi\.ai/i;
