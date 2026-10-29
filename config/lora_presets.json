@@ -1,4 +1,49 @@
 {
   "version": 1,
-  "presets": []
+  "presets": [
+    {
+      "id": "p_20261029044549_004d",
+      "name": "moss 专属",
+      "created_at": "2026-10-29T04:45:49Z",
+      "updated_at": "2026-10-29T04:45:49Z",
+      "rows": [
+        {
+          "name": "Moss\\Moss-佳能相机(0.7，词：c2n0n)-canon_moss.safetensors",
+          "enabled": true,
+          "strength": 1.0,
+          "trigger_words": ""
+        },
+        {
+          "name": "Moss\\Moss-电影风格 (cinematic style)-CINEMATIC PHOTOGRAPHY_v1.safetensors",
+          "enabled": true,
+          "strength": 1.0,
+          "trigger_words": ""
+        },
+        {
+          "name": "Moss\\[Moss Edit] Anime2Real_v1.safetensors",
+          "enabled": true,
+          "strength": 1.0,
+          "trigger_words": ""
+        },
+        {
+          "name": "Moss\\Wanderer's Sharp Details.safetensors",
+          "enabled": true,
+          "strength": 1.0,
+          "trigger_words": ""
+        },
+        {
+          "name": "Moss\\Moss-捆绑(0.7~0.8)-bondageaio-000024.safetensors",
+          "enabled": true,
+          "strength": 1.0,
+          "trigger_words": ""
+        },
+        {
+          "name": "Moss\\Moss-NSFW(词：moss_xvstyle)-moss_xvstyle_nsfw_v1_comfy.safetensors",
+          "enabled": true,
+          "strength": 1.0,
+          "trigger_words": ""
+        }
+      ]
+    }
+  ]
 }

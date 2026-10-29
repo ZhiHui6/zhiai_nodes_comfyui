@@ -102,7 +102,19 @@ class LoraStackLoader:
     FUNCTION = "load"
     RETURN_TYPES = ("MODEL", "STRING")
     RETURN_NAMES = ("model", "trigger_words")
-    DESCRIPTION = "Applies a reorderable stack of LoRAs to MODEL in row order: toggle a row with its checkbox, drag the handle to reorder, click a row to select it, and swap models from the row's More panel. Strength steps by 0.05 with the side arrows or accepts direct input (-50 to 50 by default, adjustable in the node's Settings). When batch add is enabled in Settings, the Add LoRA panel can check several models and load them at once, skipping entries already in the list. The More panel holds trigger words and one-click copy, and lets you save the whole stack as a preset for later. Outputs the enabled rows' trigger words joined by commas."
+    DESCRIPTION = (
+        "Applies multiple LoRAs to MODEL in row order. "
+        "| Rows: check a row to enable or disable it, drag the handle to reorder, "
+        "click a row to select it, replace or delete models from the row's More panel. "
+        "| Strength: step by 0.05 with the side arrows or type a value directly; "
+        "the allowed range defaults to -10 to 10 and can be adjusted or reset in the node's Settings. "
+        "| Add LoRA: search models and filter by folder, hover for a preview thumbnail; "
+        "with batch add enabled in Settings, check several models and load them at once while "
+        "skipping entries already in the list. "
+        "| Recipes and trigger words: enter trigger words in the More panel and copy them with one click; "
+        "save the whole stack as a recipe to load or append it later. "
+        "| Output: trigger words of the enabled rows, joined by commas."
+    )
 
     @classmethod
     def INPUT_TYPES(cls):

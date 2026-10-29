@@ -173,6 +173,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 
 from . import locale_api
 from . import preset_api
+from . import lora_preview_api
 from .Nodes.ZhiAIApiConfig import ZhiAIApiConfig  # noqa: F401
 
 WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")

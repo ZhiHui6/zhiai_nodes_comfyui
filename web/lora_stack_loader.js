@@ -2188,8 +2188,39 @@ async function resolvePreviewUrl(row, items) {
             if (data?.success && url && !url.includes("no-preview")) return url;
         }
     } catch (error) { /* Lora Manager 未安装时忽略 */ }
-    const fallback = previewUrl(items.find((it) => it.name === row.name) || null);
+    const item = items.find((it) => it.name === row.name) || (row.pathIndex != null ? row : null);
+    // 本插件自己的预览接口：内置接口用 glob 查找同名预览，
+    // 文件名带 [] 等通配符时会失败，这里优先走不依赖 glob 的实现
+    if (item && await hasLoraPreview(item)) {
+        const own = loraPreviewUrl(item);
+        if (!previewFailures.has(own)) return own;
+    }
+    const fallback = previewUrl(item);
     return previewFailures.has(fallback) ? "" : fallback;
+}
+
+const loraPreviewProbe = new Map();
+
+function loraPreviewUrl(item) {
+    if (!item?.name) return "";
+    const index = item.pathIndex == null ? 0 : item.pathIndex;
+    const version = item.modified == null ? "" : `&v=${encodeURIComponent(item.modified)}`;
+    return api.apiURL(`/zhiai_nodes/lora_preview?name=${encodeURIComponent(item.name)}&index=${encodeURIComponent(index)}${version}`);
+}
+
+async function hasLoraPreview(item) {
+    const key = `${item.pathIndex ?? 0}|${item.name}`;
+    if (loraPreviewProbe.has(key)) return loraPreviewProbe.get(key);
+    let available = false;
+    try {
+        const index = item.pathIndex == null ? 0 : item.pathIndex;
+        const response = await api.fetchApi(`/zhiai_nodes/lora_preview?name=${encodeURIComponent(item.name)}&index=${encodeURIComponent(index)}`, { method: "HEAD" });
+        available = response.ok;
+    } catch (error) {
+        available = false;
+    }
+    loraPreviewProbe.set(key, available);
+    return available;
 }
 
 const PREVIEW_VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogv)([?#]|$)/i;
@@ -2243,9 +2274,15 @@ function showRowTip() {
         document.body.appendChild(el);
         const rect = anchor.getBoundingClientRect();
         const tipRect = el.getBoundingClientRect();
-        let left = Math.max(6, Math.min(rect.left + rect.width / 2 - tipRect.width / 2, window.innerWidth - tipRect.width - 6));
-        let top = rect.top - tipRect.height - 8;
-        if (top < 6) top = rect.bottom + 8;
+        const TIP_GAP = 12;
+        const listEl = anchor.closest(".zll-list");
+        const listRect = listEl ? listEl.getBoundingClientRect() : rect;
+        let left = listRect.left - tipRect.width - TIP_GAP;
+        if (left < 6) {
+            left = listRect.right + TIP_GAP;
+        }
+        left = Math.max(6, Math.min(left, window.innerWidth - tipRect.width - 6));
+        let top = rect.top + rect.height / 2 - tipRect.height / 2;
         top = Math.max(6, Math.min(top, window.innerHeight - tipRect.height - 6));
         el.style.left = `${Math.round(left)}px`;
         el.style.top = `${Math.round(top)}px`;
@@ -3138,12 +3175,13 @@ function previewUrl(item) {
     return api.apiURL(`/experiment/models/preview/loras/${encodeURIComponent(item.pathIndex)}/${encoded}${version}`);
 }
 
-function updatePickerPreview() {
+async function updatePickerPreview() {
     if (!pickerState?.els) return;
-    const els = pickerState.els;
+    const state = pickerState;
+    const els = state.els;
     // 设置中关闭预览后不创建预览元素，直接跳过
     if (!els.frame || !els.nameLabel) return;
-    const item = pickerState.selected;
+    const item = state.selected;
     let baseName = "";
     if (item) {
         const slash = Math.max(item.name.lastIndexOf("/"), item.name.lastIndexOf("\\"));
@@ -3152,7 +3190,11 @@ function updatePickerPreview() {
     els.nameLabel.textContent = baseName;
     const previous = els.frame.querySelector(".zll-picker__image");
     if (previous) previous.remove();
-    const url = previewUrl(item);
+    els.empty.hidden = false;
+    if (!item) return;
+    // 优先使用 Lora Manager 的预览接口，内置接口按名解析不到时兜底
+    const url = await resolvePreviewUrl(item, state.items);
+    if (pickerState !== state || state.selected !== item) return;
     if (!url || previewFailures.has(url)) {
         els.empty.hidden = false;
         return;
