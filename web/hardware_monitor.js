@@ -3,6 +3,7 @@ import { api } from "/scripts/api.js";
 
 const EXTENSION_NAME = "ZhiAI.HardwareMonitor";
 const SETTING_ID = "ZhiAI.HardwareMonitor.Enabled";
+const UNIT_SETTING_ID = "ZhiAI.HardwareMonitor.MemoryPercent";
 const ROOT_ID = "zhiai-hardware-monitor";
 const ENDPOINT = "/zhiai_nodes/hardware_monitor";
 const POLL_INTERVAL = 1000;
@@ -16,24 +17,14 @@ const ICONS = {
 };
 
 const TEXT = {
-	zh: {
-		settingCategory: "任务栏硬件监控",
-		settingName: "在顶部任务栏显示硬件信息",
-		cpu: "CPU",
-		gpu: "GPU",
-		ram: "内存",
-		vram: "显存",
-		temp: "显卡温度",
-	},
-	en: {
-		settingCategory: "Topbar Hardware Monitor",
-		settingName: "Show hardware status in the top bar",
-		cpu: "CPU",
-		gpu: "GPU",
-		ram: "RAM",
-		vram: "VRAM",
-		temp: "GPU Temp",
-	},
+	settingCategory: "Topbar Hardware Monitor",
+	settingName: "Show hardware status in the top bar",
+	settingUnitName: "Show RAM and VRAM as percentage",
+	cpu: "CPU",
+	gpu: "GPU",
+	ram: "RAM",
+	vram: "VRAM",
+	temp: "GPU Temp",
 };
 
 const METRICS = [
@@ -45,19 +36,25 @@ const METRICS = [
 ];
 
 const STYLE = `
-#${ROOT_ID}{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:4px;margin-right:6px;color:#cbd5e1;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px;line-height:1;white-space:nowrap;user-select:none;flex:0 0 auto;box-sizing:border-box;}
+#${ROOT_ID}{display:grid;grid-template-columns:131px 165px 166px;column-gap:7px;row-gap:4px;padding:4px 0 4px 4px;margin-right:4px;color:#cbd5e1;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px;line-height:1;white-space:nowrap;user-select:none;flex:0 0 auto;box-sizing:border-box;}
 #${ROOT_ID}.zhiai-hw-hidden{display:none;}
-#${ROOT_ID} .zhiai-hw-row{display:flex;align-items:center;justify-content:flex-start;gap:11px;min-width:0;}
-#${ROOT_ID} .zhiai-hw-item{display:grid;grid-template-columns:12px minmax(0,max-content) 48px var(--zhiai-hw-value-width,40px);justify-content:start;align-items:center;gap:4px;height:12px;min-width:0;color:#94a3b8;}
+#${ROOT_ID} .zhiai-hw-row{display:contents;}
+#${ROOT_ID} .zhiai-hw-item{display:grid;align-items:center;gap:3px;height:12px;min-width:0;color:#94a3b8;}
+#${ROOT_ID} .zhiai-hw-item[data-metric="cpu"],
+#${ROOT_ID} .zhiai-hw-item[data-metric="gpu"]{grid-template-columns:12px 26px 48px 36px;}
 #${ROOT_ID} .zhiai-hw-item[data-metric="ram"],
-#${ROOT_ID} .zhiai-hw-item[data-metric="vram"]{--zhiai-hw-value-width:64px;}
-#${ROOT_ID} .zhiai-hw-item[data-metric="temp"]{--zhiai-hw-value-width:44px;}
+#${ROOT_ID} .zhiai-hw-item[data-metric="vram"]{grid-template-columns:12px 38px 48px 58px;}
+#${ROOT_ID} .zhiai-hw-item[data-metric="temp"]{grid-template-columns:12px 61px 48px 36px;}
+#${ROOT_ID}.zhiai-hw-percent{grid-template-columns:131px 143px 166px;}
 #${ROOT_ID} .zhiai-hw-icon{display:flex;width:12px;height:12px;flex:0 0 auto;}
 #${ROOT_ID} .zhiai-hw-icon svg{display:block;width:12px;height:12px;}
-#${ROOT_ID} .zhiai-hw-label{overflow:hidden;padding-right:4px;font-size:12px;line-height:12px;text-overflow:ellipsis;white-space:nowrap;}
+#${ROOT_ID} .zhiai-hw-label{overflow:hidden;font-size:12px;line-height:12px;text-overflow:ellipsis;white-space:nowrap;}
 #${ROOT_ID} .zhiai-hw-bar{height:8px;min-width:0;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden;}
 #${ROOT_ID} .zhiai-hw-fill{width:0;height:100%;border-radius:inherit;transition:width .35s ease;}
 #${ROOT_ID} .zhiai-hw-value{min-width:0;overflow:hidden;color:#e2e8f0;font-size:12px;font-variant-numeric:tabular-nums;line-height:12px;text-align:left;white-space:nowrap;}
+#${ROOT_ID} .zhiai-hw-brand{display:block;align-self:center;overflow:hidden;font-size:9px;line-height:12px;letter-spacing:.06em;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap;}
+#${ROOT_ID} .zhiai-hw-brand b{font-weight:700;background:linear-gradient(90deg,#38bdf8,#a78bfa 55%,#f472b6);-webkit-background-clip:text;background-clip:text;color:transparent;}
+#${ROOT_ID} .zhiai-hw-brand i{font-style:normal;font-weight:500;color:#64748b;}
 #${ROOT_ID} .zhiai-hw-item[data-metric="cpu"] .zhiai-hw-icon{color:#38bdf8;}
 #${ROOT_ID} .zhiai-hw-item[data-metric="gpu"] .zhiai-hw-icon{color:#8b5cf6;}
 #${ROOT_ID} .zhiai-hw-item[data-metric="ram"] .zhiai-hw-icon{color:#10b981;}
@@ -69,27 +66,29 @@ const ROW_KEYS = [["cpu", "ram"], ["gpu", "vram", "temp"]];
 
 const state = {
 	enabled: true,
+	memoryPercent: false,
 	timer: null,
 	inFlight: false,
 	root: null,
 	parts: {},
 	rows: {},
+	lastData: null,
 };
 
-function getLocale() {
-	const value = app?.ui?.settings?.getSettingValue?.("Comfy.Locale");
-	return value === "zh-CN" || value === "zh" ? "zh" : "en";
-}
-
 function t(key) {
-	const locale = getLocale();
-	return TEXT[locale]?.[key] ?? TEXT.en[key] ?? key;
+	return TEXT[key] ?? key;
 }
 
 function formatPercent(value) {
 	const number = Number(value);
 	if (!Number.isFinite(number) || number < 0) return "--";
 	return number >= 10 ? `${Math.round(number)}%` : `${number.toFixed(1)}%`;
+}
+
+function formatIntegerPercent(value) {
+	const number = Number(value);
+	if (!Number.isFinite(number) || number < 0) return "--";
+	return `${Math.round(number)}%`;
 }
 
 function formatGB(bytes) {
@@ -108,6 +107,25 @@ function setBar(part, percent) {
 function setVisible(key, visible) {
 	const part = state.parts[key];
 	if (part) part.item.style.display = visible ? "" : "none";
+}
+
+// 悬停时修改 title 会让原生提示反复消失重弹（每秒闪烁一次），
+// 因此悬停期间只暂存新文本，等鼠标移开再写入。
+function setTitle(item, text) {
+	const cache = item.__zhiaiTitle || (item.__zhiaiTitle = {});
+	cache.next = text;
+	if (item.__zhiaiHover) return;
+	if (cache.shown !== text) {
+		item.title = text;
+		cache.shown = text;
+	}
+}
+
+function flushTitle(item) {
+	const cache = item.__zhiaiTitle;
+	if (!cache || cache.next === undefined || cache.next === cache.shown) return;
+	item.title = cache.next;
+	cache.shown = cache.next;
 }
 
 function createMetric(def) {
@@ -134,6 +152,13 @@ function createMetric(def) {
 	value.textContent = "--";
 
 	item.append(icon, label, bar, value);
+	item.addEventListener("mouseenter", () => {
+		item.__zhiaiHover = true;
+	});
+	item.addEventListener("mouseleave", () => {
+		item.__zhiaiHover = false;
+		flushTitle(item);
+	});
 	return { item, label, fill, value };
 }
 
@@ -162,13 +187,22 @@ function build() {
 		root.append(row);
 	}
 
+	const brand = document.createElement("span");
+	brand.className = "zhiai-hw-brand";
+	const mark = document.createElement("b");
+	mark.textContent = "ZhiAI";
+	const name = document.createElement("i");
+	name.textContent = "Hardware Monitor";
+	brand.append("[ ", mark, " ", name, " ]");
+	state.rows.cpu.append(brand);
+
 	state.root = root;
 }
 
 function render(data) {
 	const cpu = Number(data?.cpu);
-	state.parts.cpu.value.textContent = formatPercent(cpu);
-	state.parts.cpu.item.title = `${t("cpu")} ${formatPercent(cpu)}`;
+	state.parts.cpu.value.textContent = formatIntegerPercent(cpu);
+	setTitle(state.parts.cpu.item, String(data?.cpu_name || "").trim() || t("cpu"));
 	setBar(state.parts.cpu, cpu);
 
 	const ramTotal = Number(data?.ram_total) || 0;
@@ -177,8 +211,11 @@ function render(data) {
 	const ramPercent = Number.isFinite(reportedPercent) && reportedPercent >= 0
 		? reportedPercent
 		: ramTotal > 0 ? (ramUsed / ramTotal) * 100 : 0;
-	state.parts.ram.value.textContent = `${formatGB(ramUsed)}/${formatGB(ramTotal)}G`;
-	state.parts.ram.item.title = `${t("ram")} ${formatGB(ramUsed)} / ${formatGB(ramTotal)} GB`;
+	state.parts.ram.value.textContent = state.memoryPercent
+		? formatPercent(ramPercent)
+		: `${formatGB(ramUsed)}/${formatGB(ramTotal)}G`;
+	const ramSpec = String(data?.ram_spec || "").trim();
+	setTitle(state.parts.ram.item, ramSpec || (ramTotal > 0 ? `${t("ram")} · ${formatGB(ramTotal)} GB` : t("ram")));
 	setBar(state.parts.ram, ramPercent);
 
 	const gpu = Array.isArray(data?.gpus) ? data.gpus[0] : null;
@@ -192,21 +229,23 @@ function render(data) {
 
 	const gpuName = String(gpu.name || "GPU");
 	const gpuPercent = Number(gpu.utilization);
-	state.parts.gpu.value.textContent = formatPercent(gpuPercent);
-	state.parts.gpu.item.title = `${gpuName} · ${t("gpu")} ${formatPercent(gpuPercent)}`;
+	state.parts.gpu.value.textContent = formatIntegerPercent(gpuPercent);
+	setTitle(state.parts.gpu.item, gpuName);
 	setBar(state.parts.gpu, gpuPercent);
 
 	const vramTotal = Number(gpu.vram_total) || 0;
 	const vramUsed = Number(gpu.vram_used) || 0;
 	const vramPercent = vramTotal > 0 ? (vramUsed / vramTotal) * 100 : 0;
-	state.parts.vram.value.textContent = `${formatGB(vramUsed)}/${formatGB(vramTotal)}G`;
-	state.parts.vram.item.title = `${gpuName} · ${t("vram")} ${formatGB(vramUsed)} / ${formatGB(vramTotal)} GB`;
+	state.parts.vram.value.textContent = state.memoryPercent
+		? formatPercent(vramPercent)
+		: `${formatGB(vramUsed)}/${formatGB(vramTotal)}G`;
+	setTitle(state.parts.vram.item, gpuName);
 	setBar(state.parts.vram, vramPercent);
 
 	const temperature = Number(gpu.temperature);
 	const temperatureText = Number.isFinite(temperature) && temperature >= 0 ? `${Math.round(temperature)}°C` : "--";
 	state.parts.temp.value.textContent = temperatureText;
-	state.parts.temp.item.title = `${gpuName} · ${t("temp")} ${temperatureText}`;
+	setTitle(state.parts.temp.item, gpuName);
 	setBar(state.parts.temp, temperature);
 }
 
@@ -215,7 +254,10 @@ async function refresh() {
 	state.inFlight = true;
 	try {
 		const response = await api.fetchApi(ENDPOINT, { cache: "no-store" });
-		if (response.ok) render(await response.json());
+		if (response.ok) {
+			state.lastData = await response.json();
+			render(state.lastData);
+		}
 	} catch (error) {
 	} finally {
 		state.inFlight = false;
@@ -240,6 +282,12 @@ function applyEnabled(enabled) {
 	if (state.root) state.root.classList.toggle("zhiai-hw-hidden", !state.enabled);
 	if (state.enabled) start();
 	else stop();
+}
+
+function applyMemoryPercent(enabled) {
+	state.memoryPercent = enabled === true;
+	if (state.root) state.root.classList.toggle("zhiai-hw-percent", state.memoryPercent);
+	if (state.lastData) render(state.lastData);
 }
 
 function mount() {
@@ -267,13 +315,22 @@ function registerSetting() {
 	settings.addSetting({
 		id: SETTING_ID,
 		name: t("settingName"),
-		category: ["ZhiAI", t("settingCategory")],
+		category: ["ZhiAI", t("settingCategory"), "Enabled"],
 		type: "boolean",
 		defaultValue: true,
 		onChange: (value) => applyEnabled(value),
 	});
+	settings.addSetting({
+		id: UNIT_SETTING_ID,
+		name: t("settingUnitName"),
+		category: ["ZhiAI", t("settingCategory"), "MemoryPercent"],
+		type: "boolean",
+		defaultValue: false,
+		onChange: (value) => applyMemoryPercent(value),
+	});
 	try {
 		settings.addEventListener(`${SETTING_ID}.change`, (event) => applyEnabled(event?.detail?.value));
+		settings.addEventListener(`${UNIT_SETTING_ID}.change`, (event) => applyMemoryPercent(event?.detail?.value));
 	} catch (error) {
 	}
 }
@@ -286,6 +343,8 @@ app.registerExtension({
 	async setup() {
 		build();
 		mountWithRetry();
+		const storedUnit = app.ui?.settings?.getSettingValue?.(UNIT_SETTING_ID);
+		applyMemoryPercent(!!storedUnit);
 		const stored = app.ui?.settings?.getSettingValue?.(SETTING_ID);
 		applyEnabled(stored === undefined ? true : !!stored);
 	},
