@@ -921,6 +921,52 @@ Visual group switch management tool that automatically detects all groups in the
 </table>
 ---
 
+## 🖥️ Topbar Hardware Monitor
+
+Besides nodes, the pack ships a topbar hardware monitor extension. Once installed it mounts automatically in the ComfyUI top bar, just left of the settings menu — no node to add and no workflow overhead.
+
+<table>
+<tr>
+<th width="22%">Metric</th>
+<th width="28%">Display</th>
+<th width="50%">Details</th>
+</tr>
+<tr>
+<td><b>CPU</b></td>
+<td>Usage + progress bar</td>
+<td>Hover shows the processor model</td>
+</tr>
+<tr>
+<td><b>RAM</b></td>
+<td>Used / total (default) or percentage</td>
+<td>Hover shows memory specs (brand, generation &amp; speed, channel layout)</td>
+</tr>
+<tr>
+<td><b>GPU</b></td>
+<td>Usage + progress bar</td>
+<td>Hover shows the GPU model</td>
+</tr>
+<tr>
+<td><b>VRAM</b></td>
+<td>Used / total (default) or percentage</td>
+<td>Hover shows the GPU model</td>
+</tr>
+<tr>
+<td><b>GPU Temp</b></td>
+<td>Temperature (°C) + progress bar</td>
+<td>All three GPU metrics hide automatically when no NVIDIA device is detected</td>
+</tr>
+</table>
+
+<b>Usage Notes</b>:
+- <b>Settings</b>: ComfyUI Settings → <b>ZhiAI</b> → <b>Topbar Hardware Monitor</b>, with separate toggles for showing the monitor and showing RAM/VRAM as a percentage. Changes apply immediately.
+- <b>Refresh rate</b>: updated once per second; polling pauses while the window is minimized or the page is hidden.
+- <b>Zero idle overhead</b>: the backend samples only while requests are coming in and stops its sampling thread after 60 seconds without any request.
+- <b>GPU data source</b>: read through NVML (`nvidia-ml-py` plus an NVIDIA driver). If NVML is unavailable, the three GPU metrics hide automatically and only CPU and RAM stay visible.
+- <b>Dependencies</b>: CPU and memory data come from `psutil`, which is already listed in `requirements.txt`.
+
+---
+
 ## 🚀 Installation Methods
 
 ### 📦 Method 1: Install via ComfyUI Manager (Recommended)
@@ -972,7 +1018,8 @@ What each dependency is used for:
 - **opencv-python**: Color Removal, Image Rotate Tool, Video Frame Extractor, LM Studio Node
 - **scikit-image**: Color Match To Reference
 - **openai**: Image Understanding Online
-- **nvidia-ml-py**: Reserved VRAM Setter (requires an NVIDIA driver)
+- **nvidia-ml-py**: Reserved VRAM Setter and GPU data for the Topbar Hardware Monitor (requires an NVIDIA driver)
+- **psutil**: CPU and memory data for the Topbar Hardware Monitor
 - **cryptography**: decryption of the built-in data pack used by the Tag Selector character extractor
 
 ## 📄 License

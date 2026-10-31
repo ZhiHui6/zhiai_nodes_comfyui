@@ -52,7 +52,7 @@ const STYLE = `
 #${ROOT_ID} .zhiai-hw-bar{height:8px;min-width:0;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden;}
 #${ROOT_ID} .zhiai-hw-fill{width:0;height:100%;border-radius:inherit;transition:width .35s ease;}
 #${ROOT_ID} .zhiai-hw-value{min-width:0;overflow:hidden;color:#e2e8f0;font-size:12px;font-variant-numeric:tabular-nums;line-height:12px;text-align:left;white-space:nowrap;}
-#${ROOT_ID} .zhiai-hw-brand{display:block;align-self:center;overflow:hidden;font-size:9px;line-height:12px;letter-spacing:.06em;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap;}
+#${ROOT_ID} .zhiai-hw-brand{display:block;align-self:center;overflow:hidden;padding-left:3px;font-size:9px;line-height:12px;letter-spacing:.06em;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap;}
 #${ROOT_ID} .zhiai-hw-brand b{font-weight:700;background:linear-gradient(90deg,#38bdf8,#a78bfa 55%,#f472b6);-webkit-background-clip:text;background-clip:text;color:transparent;}
 #${ROOT_ID} .zhiai-hw-brand i{font-style:normal;font-weight:500;color:#64748b;}
 #${ROOT_ID} .zhiai-hw-item[data-metric="cpu"] .zhiai-hw-icon{color:#38bdf8;}

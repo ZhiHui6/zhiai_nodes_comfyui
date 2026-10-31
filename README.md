@@ -926,6 +926,52 @@
 </table>
 ---
 
+## 🖥️ 顶栏硬件监测
+
+除节点之外，节点包还内置一个顶栏硬件监测扩展：安装后自动挂载在 ComfyUI 顶栏（设置菜单位置的左侧），无需拖入任何节点，也不占用工作流。
+
+<table>
+<tr>
+<th width="22%">监测项</th>
+<th width="28%">显示内容</th>
+<th width="50%">说明</th>
+</tr>
+<tr>
+<td><b>CPU</b></td>
+<td>占用率 + 进度条</td>
+<td>悬停显示处理器型号</td>
+</tr>
+<tr>
+<td><b>RAM</b></td>
+<td>已用/总容量（默认）或百分比</td>
+<td>悬停显示内存规格（品牌、代际频率、通道）</td>
+</tr>
+<tr>
+<td><b>GPU</b></td>
+<td>占用率 + 进度条</td>
+<td>悬停显示显卡型号</td>
+</tr>
+<tr>
+<td><b>VRAM</b></td>
+<td>已用/总容量（默认）或百分比</td>
+<td>悬停显示显卡型号</td>
+</tr>
+<tr>
+<td><b>GPU Temp</b></td>
+<td>温度（°C）+ 进度条</td>
+<td>无 NVIDIA 设备时 GPU 三项自动隐藏</td>
+</tr>
+</table>
+
+<b>使用说明</b>：
+- <b>开关设置</b>：ComfyUI 设置 → <b>ZhiAI</b> → <b>Topbar Hardware Monitor</b>，可分别控制顶栏显示开关与「RAM/VRAM 以百分比显示」，修改后立即生效。
+- <b>刷新频率</b>：每秒刷新一次；窗口最小化或页面隐藏时暂停轮询。
+- <b>空闲零开销</b>：后端仅在存在请求时采样，连续 60 秒无请求即停止采样线程。
+- <b>GPU 数据来源</b>：通过 NVML（`nvidia-ml-py` + NVIDIA 驱动）读取；未检测到 NVML 时，GPU 三项自动隐藏，只保留 CPU 与 RAM。
+- <b>依赖</b>：CPU 与内存数据由 `psutil` 采集，已包含在 `requirements.txt` 中。
+
+---
+
 ## 🚀 安装方式
 
 ### 📦 方式一：通过 ComfyUI Manager 安装（推荐）
@@ -977,7 +1023,8 @@ pip install -r requirements.txt
 - **opencv-python**：颜色移除、图像旋转工具、视频帧提取器、LM Studio 节点
 - **scikit-image**：色彩匹配
 - **openai**：图像理解在线版
-- **nvidia-ml-py**：预留显存设置器（需要 NVIDIA 驱动）
+- **nvidia-ml-py**：预留显存设置器、顶栏硬件监测的 GPU 数据（需要 NVIDIA 驱动）
+- **psutil**：顶栏硬件监测的 CPU 与内存数据
 - **cryptography**：标签选择器角色提取器内置数据的解密读取
 
 ## 📄 许可证
