@@ -23,7 +23,6 @@ from .Nodes.MovieTools.ColorMatchToReference import ColorMatchToReference
 from .Nodes.MovieTools.FilmGrain import FilmGrain
 from .Nodes.LatentSwitchDualMode import LatentSwitchDualMode
 from .Nodes.ImageAspectRatio import ImageAspectRatio
-from .Nodes.Preview_or_Compare_Images import PreviewOrCompareImages
 from .Nodes.TextEditorWithContinue import TextEditorWithContinue
 from .Nodes.TagSelector.TagSelector import TagSelector
 from .Nodes.PromptCardSelector.PromptCardSelector import PromptCardSelector
@@ -54,6 +53,7 @@ from .Nodes.MultimediaAdvancedLoader import MultimediaAdvancedLoader
 from .Nodes.LoraStackLoader import LoraStackLoader
 from .Nodes.VideoPreview import VideoPreview
 from .Nodes.ImageIndexer import ImageIndexer
+from .Nodes.ImagePreviewCompare import ImagePreviewCompare
 
 import os
 
@@ -82,7 +82,6 @@ NODE_CLASS_MAPPINGS = {
     "LatentSwitchDualMode": LatentSwitchDualMode,
     "ImageAspectRatio": ImageAspectRatio,
     "GetImageSizes": GetImageSizes,
-    "PreviewOrCompareImages": PreviewOrCompareImages,
     "TextEditorWithContinue": TextEditorWithContinue,
     "TagSelector": TagSelector,
     "PromptCardSelector": PromptCardSelector,
@@ -109,6 +108,7 @@ NODE_CLASS_MAPPINGS = {
     "LoraStackLoader": LoraStackLoader,
     "VideoPreview": VideoPreview,
     "ImageIndexer": ImageIndexer,
+    "ImagePreviewCompare": ImagePreviewCompare,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -136,7 +136,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LatentSwitchDualMode": "Latent Switch Dual Mode",
     "ImageAspectRatio": "Image Aspect Ratio",
     "GetImageSizes": "Get Image Sizes",
-    "PreviewOrCompareImages": "Preview or Compare Images",
     "TextEditorWithContinue": "Text Editor with Continue",
     "TagSelector": "Tag Selector",
     "PromptCardSelector": "Prompt Card Selector",
@@ -163,6 +162,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LoraStackLoader": "LoRA Stack Loader",
     "VideoPreview": "Video Preview",
     "ImageIndexer": "Image Indexer",
+    "ImagePreviewCompare": "Image Preview / Compare",
 }
 
 from . import locale_api

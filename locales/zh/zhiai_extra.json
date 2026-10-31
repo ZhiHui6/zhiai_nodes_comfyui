@@ -282,6 +282,12 @@
             "images": "图像（原序透传）"
         }
     },
+    "ImagePreviewCompare": {
+        "outputs": {
+            "image_a": "图像 A",
+            "image_b": "图像 B"
+        }
+    },
     "LoraStackLoader": {
         "outputs": {
             "model": "模型",

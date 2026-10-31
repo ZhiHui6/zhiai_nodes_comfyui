@@ -428,19 +428,15 @@ Professional image rotation and flipping tool, supporting preset angles and cust
 </td>
 </tr>
 <tr>
-<td><b>Image Preview/Compare</b><br><code>PreviewOrCompareImages</code></td>
-<td>Multi-functional image preview and comparison node, supporting single image preview or side-by-side comparison display of two images. image_1 is a required input, image_2 is an optional input, and comparison mode is automatically enabled when two images are provided.
+<td><b>Image Preview / Compare</b><br><code>ImagePreviewCompare</code></td>
+<td>
 
-<b>Features</b>:
-- <b>Dual Mode Intelligent Switching</b>: Automatically switches between preview or comparison mode based on single or dual image input
-- <b>Interactive Comparison</b>: Displays a sliding divider on mouse hover for intuitive comparison
+Compares A/B image streams side by side inside the node; drag the splitter to reveal either side.
 
-<br>
-<div align="left">
-<a href="images/图像对比.jpg" target="_blank">
-<img src="images/图像对比.jpg" alt="Image Preview Comparison" width="45%"/>
-</a>
-</div>
+- <b>Two split directions</b>: Left/right by default (A left, B right); switch to top/bottom in Settings. The A/B handle follows the direction and can be hidden
+- <b>Info & paging</b>: Native resolution badges on each side; paging for image lists; with a single image, the previous result fills the other side
+- <b>Output & execution</b>: `auto_output` only gates the A branch (B always passes through); when referenced downstream the node runs on demand, and unselected lazy branches do not refresh the preview
+
 </td>
 </tr>
 <tr>

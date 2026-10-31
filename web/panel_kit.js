@@ -1488,7 +1488,7 @@ function findScrollable(event) {
     return null;
 }
 
-function attachWheelForwarding(el) {
+export function attachWheelForwarding(el) {
     const onWheel = (event) => {
         const canvasEl = globalThis.app?.canvas?.canvas;
         if (!canvasEl) return;

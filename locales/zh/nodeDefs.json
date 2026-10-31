@@ -890,18 +890,6 @@
             }
         }
     },
-    "PreviewOrCompareImages": {
-        "display_name": "图像预览/对比",
-        "description": "预览单张图像或并排对比两张，悬停时可拖动分割线。",
-        "inputs": {
-            "image_1": {
-                "name": "主要图像（必需）"
-            },
-            "image_2": {
-                "name": "次要图像（可选）"
-            }
-        }
-    },
     "TextEditorWithContinue": {
         "display_name": "文本编辑器（继续运行）",
         "description": "暂停工作流并把上游文本同步到可编辑框，点继续后恢复执行。",
@@ -1569,6 +1557,21 @@
         "inputs": {
             "images": {
                 "name": "图像"
+            }
+        }
+    },
+    "ImagePreviewCompare": {
+        "display_name": "图像预览/比对",
+        "description": "并排比对 A/B 两路图像，支持左右/上下分割与 A/B 把手、分辨率标识、批量翻页与历史对比；可控制 A 分支输出，并在懒执行分支中按需执行。",
+        "inputs": {
+            "auto_output": {
+                "name": "自动输出"
+            },
+            "image_a": {
+                "name": "图像 A"
+            },
+            "image_b": {
+                "name": "图像 B"
             }
         }
     },
