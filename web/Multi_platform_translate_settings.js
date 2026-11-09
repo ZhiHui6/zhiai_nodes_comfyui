@@ -1,5 +1,6 @@
 import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
+import { drawNodeSettingsButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 
 const i18n = {
     zh: {
@@ -29,7 +30,7 @@ const i18n = {
         importError: "❌ 导入失败，文件格式错误或文件损坏。",
         saveSuccess: "配置保存成功！",
         saveFailed: "配置保存失败，请重试。",
-        configButton: "⚙️ 配置管理",
+        settingsTip: "翻译平台配置管理",
         baidu: "百度翻译",
         aliyun: "阿里云翻译",
         youdao: "有道翻译",
@@ -69,7 +70,7 @@ const i18n = {
         importError: "❌ Import failed, file format error or file corrupted.",
         saveSuccess: "Configuration saved successfully!",
         saveFailed: "Failed to save configuration, please try again.",
-        configButton: "⚙️ Config Management",
+        settingsTip: "Translation platform configuration",
         baidu: "Baidu Translate",
         aliyun: "Aliyun Translate",
         youdao: "Youdao Translate",
@@ -92,6 +93,26 @@ function getLocale() {
 function $t(key) {
     const locale = getLocale();
     return i18n[locale][key] || i18n['en'][key] || key;
+}
+
+const TITLE_ICON_SIZE = 24;
+const TITLE_ICON_GAP = 4;
+const TITLE_ICON_MARGIN = 4;
+
+function settingsIconLeft(node) {
+    return node.size[0] - TITLE_ICON_SIZE - TITLE_ICON_MARGIN - TITLE_ICON_SIZE - TITLE_ICON_GAP;
+}
+
+function settingsIconTop() {
+    return -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - TITLE_ICON_SIZE) / 2;
+}
+
+function hitSettingsIcon(node, localPos) {
+    if (!localPos || !node?.size) return false;
+    const left = settingsIconLeft(node);
+    const top = settingsIconTop();
+    return localPos[0] > left && localPos[0] < left + TITLE_ICON_SIZE
+        && localPos[1] > top && localPos[1] < top + TITLE_ICON_SIZE;
 }
 
 const Utils = {
@@ -584,6 +605,8 @@ async function openSettings(node) {
         alert($t('loadConfigFailed'));
         return;
     }
+    dialogOwner = node;
+    node?.setDirtyCanvas?.(true, true);
 
     overlay = createOverlay();
     dialog = createDialog();
@@ -981,6 +1004,9 @@ async function openSettings(node) {
         document.body.removeChild(overlay);
         dialog = null;
         overlay = null;
+        const owner = dialogOwner;
+        dialogOwner = null;
+        owner?.setDirtyCanvas?.(true, true);
     }
 
     render();
@@ -994,22 +1020,57 @@ async function openSettings(node) {
 app.registerExtension({
     name: "zhiai_nodes.MultiPlatformTranslate",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === "MultiPlatformTranslate") {
-            const onNodeCreated = nodeType.prototype.onNodeCreated;
-            nodeType.prototype.onNodeCreated = function () {
-                const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
-                const configButton = this.addWidget("button", $t('configButton'), null, () => {
-                    openSettings(this);
-                });
-                
-                return r;
-            };
-        }
+        if (nodeData.name !== "MultiPlatformTranslate") return;
+        const onDrawForeground = nodeType.prototype.onDrawForeground;
+        nodeType.prototype.onDrawForeground = function (ctx) {
+            const result = onDrawForeground?.apply(this, arguments);
+            if (this.flags?.collapsed) return result;
+            ctx.save();
+            ctx.translate(settingsIconLeft(this), settingsIconTop());
+            ctx.scale(TITLE_ICON_SIZE / 32, TITLE_ICON_SIZE / 32);
+            drawNodeSettingsButton(ctx, !!(this._zmtSettingsHovered || dialogOwner === this));
+            ctx.restore();
+            return result;
+        };
+        const onMouseDown = nodeType.prototype.onMouseDown;
+        nodeType.prototype.onMouseDown = function (e, localPos) {
+            const result = onMouseDown?.apply(this, arguments);
+            if (this.flags?.collapsed) return result;
+            if (hitSettingsIcon(this, localPos)) {
+                hideTitleTip();
+                openSettings(this);
+                return true;
+            }
+            return result;
+        };
+        const onMouseMove = nodeType.prototype.onMouseMove;
+        nodeType.prototype.onMouseMove = function (e, localPos) {
+            const result = onMouseMove?.apply(this, arguments);
+            if (this.flags?.collapsed) return result;
+            const hovered = hitSettingsIcon(this, localPos);
+            if (hovered !== this._zmtSettingsHovered) {
+                this._zmtSettingsHovered = hovered;
+                this.setDirtyCanvas?.(true, true);
+            }
+            titleTipHovered(hovered, $t('settingsTip'), e);
+            return result;
+        };
+        const onMouseLeave = nodeType.prototype.onMouseLeave;
+        nodeType.prototype.onMouseLeave = function () {
+            const result = onMouseLeave?.apply(this, arguments);
+            if (this._zmtSettingsHovered) {
+                this._zmtSettingsHovered = false;
+                this.setDirtyCanvas?.(true, true);
+            }
+            hideTitleTip();
+            return result;
+        };
     }
 });
 
 let dialog = null;
 let overlay = null;
+let dialogOwner = null;
 let keyboardBlockHandler = null;
 let uniqueId = 'zhiai-translate-settings-' + Math.random().toString(36).substr(2, 9);
 

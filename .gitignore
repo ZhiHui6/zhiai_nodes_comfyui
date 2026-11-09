@@ -8,9 +8,9 @@ test_*.html
 test_*.cjs
 node.zip
 config/api_keys.json
-# 图像理解在线版的平台配置（含 API Key），属本地凭据不入库
 Nodes/ImageUnderstandingOnline/api_config.json
-# 批处理运行态（最近使用的文件夹 + 断点进度），属本地状态不入库
 Nodes/ImageUnderstandingOnline/batch_config.json
 .DS_Store
 Thumbs.db
+.trae/
+docs/

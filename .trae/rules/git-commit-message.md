@@ -1,6 +1,6 @@
 ---
-alwaysApply: false
-description: 
+alwaysApply: true
 scene: git_message
 ---
-Write commit messages in English only, regardless of any generation language setting. Follow Conventional Commits (`<type>: <summary>`); keep it brief — one-line subject, body only if necessary in 1-2 short sentences, describing only the actual diff.
+
+在此处编写规则，自定义 AI 生成提交信息的风格。

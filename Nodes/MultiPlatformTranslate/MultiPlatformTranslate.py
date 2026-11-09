@@ -15,9 +15,9 @@ class MultiPlatformTranslate:
         return {
             "required": {
                 "enable_translate": ("BOOLEAN", {"default": True}),
-                "platform": (["baidu", "aliyun", "youdao", "zhipu", "google"], {"default": "baidu"}),
-                "source_language": (["auto", "zh", "en", "ja", "ko", "fr", "de", "es", "ru", "ar"], {"default": "auto"}),
-                "target_language": (["zh", "en", "ja", "ko", "fr", "de", "es", "ru", "ar"], {"default": "en"}),
+                "platform": (["free", "baidu", "aliyun", "youdao", "zhipu", "google"], {"default": "baidu"}),
+                "source_language": (["auto", "zh", "en"], {"default": "auto"}),
+                "target_language": (["zh", "en"], {"default": "en"}),
                 "your_text": ("STRING", {"default": "", "multiline": True}),
             }
         }
@@ -26,7 +26,7 @@ class MultiPlatformTranslate:
     RETURN_NAMES = ("translation_result",)
     FUNCTION = "translate"
     CATEGORY = "Zhi.AI/Text"
-    DESCRIPTION = "Translates text with Baidu, Aliyun, Youdao, Zhipu AI or a free service, with API settings managed from the Configuration Management dialog."
+    DESCRIPTION = "Translates text with a key-free free service (Youdao demo / Bing Edge / Alibaba web) or Baidu, Aliyun, Youdao, Zhipu AI and Google, with API settings managed from the Configuration Management dialog."
 
     def __init__(self):
         self.config_path = os.path.join(os.path.dirname(__file__), "MultiPlatformTranslateConfig.json")
@@ -66,11 +66,13 @@ class MultiPlatformTranslate:
             return (your_text,)
 
         platform_config = self.config["platforms"].get(platform)
-        if not platform_config:
+        if not platform_config and platform != "free":
             return (your_text,)
 
         try:
-            if platform == "baidu":
+            if platform == "free":
+                result = self.translate_free(source_language, target_language, your_text)
+            elif platform == "baidu":
                 result = self.translate_baidu(platform_config["config"], source_language, target_language, your_text)
             elif platform == "aliyun":
                 result = self.translate_aliyun(platform_config["config"], source_language, target_language, your_text)
@@ -87,6 +89,84 @@ class MultiPlatformTranslate:
         except Exception as e:
             print(f"Translation error with {platform}: {e}")
             return (your_text,)
+
+    FREE_YOUDAO_LANGS = {"auto": "Auto", "zh": "zh-CHS", "en": "en"}
+    FREE_BING_LANGS = {"auto": None, "zh": "zh-Hans", "en": "en"}
+    FREE_ALIBABA_LANGS = {"auto": "auto", "zh": "zh", "en": "en"}
+
+    def translate_free(self, source_language, target_language, text):
+        query = text.strip()
+        if len(query) <= 1000:
+            try:
+                return self.translate_free_youdao(query, source_language, target_language)
+            except Exception:
+                pass
+        try:
+            return self.translate_free_bing(query, source_language, target_language)
+        except Exception:
+            pass
+        return self.translate_free_alibaba(query, source_language, target_language)
+
+    def translate_free_youdao(self, text, source_language, target_language):
+        data = {
+            "q": text,
+            "from": self.FREE_YOUDAO_LANGS[source_language],
+            "to": self.FREE_YOUDAO_LANGS[target_language],
+        }
+        response = requests.post("https://aidemo.youdao.com/trans", data=data, timeout=15)
+        response.raise_for_status()
+        result = response.json()
+        if result.get("errorCode") != "0":
+            raise Exception(f"Youdao free translate error: {result.get('errorCode')}")
+        return "\n".join(result["translation"])
+
+    def translate_free_bing(self, text, source_language, target_language):
+        params = {"to": self.FREE_BING_LANGS[target_language]}
+        source = self.FREE_BING_LANGS[source_language]
+        if source:
+            params["from"] = source
+        response = requests.post(
+            "https://edge.microsoft.com/translate/translatetext",
+            params=params,
+            json=[text],
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0"
+            },
+            timeout=15,
+        )
+        response.raise_for_status()
+        return response.json()[0]["translations"][0]["text"]
+
+    def translate_free_alibaba(self, text, source_language, target_language):
+        if len(text) > 5000:
+            raise ValueError("Free translation supports up to 5000 characters per request")
+        csrf_url = "https://translate.alibaba.com/api/translate/csrftoken"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+        }
+        session = requests.Session()
+        session.get(csrf_url, headers=headers, timeout=15)
+        token = session.get(csrf_url, headers=headers, timeout=15).json()
+        headers.update({
+            "Origin": "https://translate.alibaba.com",
+            "Referer": "https://translate.alibaba.com/",
+            token["headerName"]: token["token"],
+        })
+        files = {
+            "query": (None, text),
+            "srcLang": (None, self.FREE_ALIBABA_LANGS[source_language]),
+            "tgtLang": (None, self.FREE_ALIBABA_LANGS[target_language]),
+            "_csrf": (None, token["token"]),
+            "domain": (None, "general"),
+        }
+        response = session.post(
+            "https://translate.alibaba.com/api/translate/text",
+            files=files,
+            headers=headers,
+            timeout=15,
+        )
+        response.raise_for_status()
+        return response.json()["data"]["translateText"]
 
     def translate_baidu(self, config, source_language, target_language, text):
         app_id = config.get("app_id", "")

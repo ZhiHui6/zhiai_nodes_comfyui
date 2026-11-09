@@ -19,7 +19,7 @@ The node pack ships with its own Chinese/English dictionary and follows ComfyUI'
 
 ### **Core Functionality Features**
 
-- 🔄 **Multi-Engine Translation Nodes**: Integrates 5 major translation platforms including Baidu, Alibaba Cloud, Youdao, Zhipu AI and Google, supporting Chinese-English mutual translation with automatic input language detection and flexible platform switching.
+- 🔄 **Multi-Engine Translation Nodes**: Integrates a key-free free translation option plus Baidu, Alibaba Cloud, Youdao, Zhipu AI and Google — 6 choices in total, supporting Chinese-English mutual translation with automatic input language detection and flexible platform switching.
 
 - 📝 **Comprehensive Text Processing**: Provides text operation nodes including multi-line text editing, text merging and separation, content extraction and modification, and language filtering.
 
@@ -191,10 +191,11 @@ This node collection contains numerous nodes with different functionalities, div
 <td><b>Multi-Platform Translation</b><br><code>MultiPlatformTranslate</code></td>
 <td>
 
-Multi-platform translation node, supporting Baidu, Alibaba Cloud, Youdao, Zhipu AI and Google — 5 platforms in total. Users can set API keys for each platform through the configuration management interface to achieve high-quality professional translation services.
+Multi-platform translation node, supporting a key-free free translation option plus Baidu, Alibaba Cloud, Youdao, Zhipu AI and Google — 6 choices in total. For the latter five platforms, users can set API keys through the configuration management interface to achieve high-quality professional translation services.
 
 <b>Features</b>:
 - <b>Multi-platform Support</b>: Supports mainstream translation platforms to meet different needs
+- <b>Free Translation</b>: No API key needed; up to 1000 characters go through the Youdao demo endpoint and longer text through the token-free Bing Edge endpoint, with the Alibaba web endpoint (up to 5000 characters per request) as last-resort fallback
 - <b>Configuration Management</b>: Easily manage API keys for each platform through a graphical interface
 - <b>Professional Translation</b>: Provides high-quality professional translation services
 
@@ -462,6 +463,18 @@ Professional image format conversion tool, supporting batch conversion of multip
 <img src="images/Image Format Converter.jpg" alt="Image Format Converter" width="45%"/>
 </a>
 </div>
+</td>
+</tr>
+<tr>
+<td><b>Image Grid & Title</b><br><code>ImageGridTitle</code></td>
+<td>
+
+Adds a title bar to every frame, then combines multiple image inputs into a single image. The number of image ports is user-adjustable (1-50).
+
+- <b>Titles</b>: one line in <code>titles</code> per frame; bar color, opacity, position (outside top, inside top, middle, inside bottom, outside bottom), height, font size, padding, text color, and alignment are configurable; an empty title keeps the bar only
+- <b>Grid</b>: horizontal, vertical, or grid layout (columns 0 = auto) with adjustable spacing and background; crop modes (standard / left / center / right) accept any image count, splitting the first frame's size into equal strips along the layout axis with one strip per image (standard = first takes left/top, last takes right/bottom, middle ones centered; multi-column grids split per row)
+- <b>Size</b>: <code>output_size</code> scales by long edge to original / 1K / 2K / 4K before titles are drawn
+
 </td>
 </tr>
 <tr>
@@ -998,7 +1011,7 @@ After installation every node sits under the **Zhi.AI** top-level category of th
 
 - **Network access**: translation, AI expansion and online image understanding call remote endpoints; the text, image and latent tools run entirely locally.
 - **LLM platform keys**: open the ComfyUI **Settings** panel → **ZhiAI** → click "📝 API Settings" to fill in API Key, Base URL and model name for OpenAI, Google, ZhipuAI, DeepSeek, SiliconFlow, MoonshotAI, MiniMax, Alibaba, VolcEngine, Tencent, ModelScope, NVIDIA and any custom endpoint, with a connection test included. The Tag Selector's AI expansion reads this configuration directly (`platform` set to auto picks whichever profile is available), and Image Understanding Online shares the same storage for its endpoint profiles.
-- **Translation keys**: click the "⚙️ Config Management" button on the Multi-Platform Translation node to enter the credentials of Baidu, Alibaba Cloud, Youdao, Zhipu AI and Google separately.
+- **Translation keys**: click the gear button in the Multi-Platform Translation node's title bar (left of the help button) to enter the credentials of Baidu, Alibaba Cloud, Youdao, Zhipu AI and Google separately.
 - **LM Studio**: run LM Studio locally with its server enabled (default port 1234); see the Prerequisites of that node above.
 
 ### 📋 Dependencies

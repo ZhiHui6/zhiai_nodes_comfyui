@@ -133,6 +133,70 @@ function zhOption(className, widgetName, value) {
 	return textOf(nodeDict(className)?.options?.[widgetName]?.[text]) ?? textOf(dicts.values[text]);
 }
 
+function canonicalOptionValue(className, widgetName, value) {
+	const entry = nodeDict(className)?.options?.[widgetName];
+	if (!entry) return null;
+	const text = String(value ?? "");
+	for (const [raw, zh] of Object.entries(entry)) {
+		if (zh === text) return raw;
+	}
+	return null;
+}
+
+function wrapComboSerialize(widget, className) {
+	if (widget._zhiaiSerializeWrap) return;
+	const originalSerialize = widget.serializeValue;
+	widget._zhiaiSerializeWrap = function (node, index) {
+		const display = this.value;
+		const raw = canonicalOptionValue(className, this.name, display);
+		let result;
+		if (raw != null) this.value = raw;
+		try {
+			result = originalSerialize
+				? originalSerialize.call(this, node, index)
+				: raw ?? display;
+		} finally {
+			this.value = display;
+		}
+		return result;
+	};
+	widget.serializeValue = widget._zhiaiSerializeWrap;
+}
+
+function applyComboValues(className, widget) {
+	const options = widget.options;
+	if (!isComboWidget(widget) || !Array.isArray(options?.values)) return false;
+	if (!Array.isArray(widget._zhiaiOriginalValues)) {
+		widget._zhiaiOriginalValues = options.values.map((value) => String(value));
+	}
+	const original = widget._zhiaiOriginalValues;
+	const zh = getLocale() === "zh";
+	const next = zh
+		? original.map((value) => zhOption(className, widget.name, value) ?? value)
+		: original.slice();
+	if (widget.value != null) {
+		if (!next.includes(widget.value)) {
+			const index = original.indexOf(String(widget.value));
+			if (index >= 0) {
+				widget.value = next[index];
+			} else {
+				const raw = canonicalOptionValue(className, widget.name, widget.value);
+				if (raw != null) {
+					const rawIndex = original.indexOf(raw);
+					if (rawIndex >= 0) widget.value = next[rawIndex];
+				}
+			}
+		}
+	}
+	const unchanged =
+		next.length === options.values.length &&
+		next.every((value, index) => options.values[index] === value);
+	if (unchanged) return false;
+	options.values = next;
+	wrapComboSerialize(widget, className);
+	return true;
+}
+
 export function zhNodeInfo(className) {
 	return {
 		title: zhText(className, "title"),
@@ -201,6 +265,8 @@ function applyLiveLabel(item, resolveZh) {
 	const zh = resolveZh(item.name);
 	const current = item.label;
 	if (typeof current === "string" && current && current !== item.name && current !== zh) return false;
+	const fallback =
+		typeof current === "string" && current && current !== item.name ? current : item.name;
 	try {
 		Object.defineProperty(item, "label", {
 			configurable: true,
@@ -209,7 +275,13 @@ function applyLiveLabel(item, resolveZh) {
 				const text = resolveZh(this.name);
 				const value = this._zhiaiLabelOverride;
 				if (typeof value === "string" && value && value !== this.name && value !== text) return value;
-				return getLocale() === "zh" && text ? text : this.name;
+				const name = this.name;
+				const resolved = textOf(text);
+				if (getLocale() === "zh" && resolved && resolved !== name) return resolved;
+				if (typeof fallback === "string" && fallback && fallback !== name) return fallback;
+				const dot = name.lastIndexOf(".");
+				if (dot >= 0 && dot < name.length - 1) return name.slice(dot + 1);
+				return name;
 			},
 			set(value) {
 				this._zhiaiLabelOverride = value;
@@ -301,7 +373,10 @@ export function applyNode(node) {
 	for (const widget of node.widgets ?? []) {
 		if (typeof widget?.name !== "string") continue;
 		changed = applyWidgetLabel(widget, zhLabel(className, widget.name)) || changed;
-		if (isComboWidget(widget)) changed = applyOptionLabel(className, widget) || changed;
+		if (isComboWidget(widget)) {
+			changed = applyComboValues(className, widget) || changed;
+			changed = applyOptionLabel(className, widget) || changed;
+		}
 	}
 	return changed;
 }

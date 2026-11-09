@@ -1225,7 +1225,7 @@
     },
     "MultiPlatformTranslate": {
         "display_name": "多平台翻译器",
-        "description": "调用百度、阿里云、有道、智谱 AI 或免费服务翻译文本。",
+        "description": "调用免密钥的免费翻译（有道演示 / Bing Edge / 阿里网页版），或百度、阿里云、有道、智谱 AI、谷歌服务翻译文本。",
         "inputs": {
             "enable_translate": {
                 "name": "启用翻译"
@@ -1572,6 +1572,57 @@
             },
             "image_b": {
                 "name": "图像 B"
+            }
+        }
+    },
+    "ImageGridTitle": {
+        "display_name": "图像拼接与标题",
+        "description": "逐帧添加标题条后，按横向、纵向或网格拼接为一张图，支持多路图像输入与端口增删。",
+        "inputs": {
+            "titles": {
+                "name": "独立标题（每行一个）"
+            },
+            "title_bar_color": {
+                "name": "标题底色"
+            },
+            "title_bar_opacity": {
+                "name": "底色透明度"
+            },
+            "title_position": {
+                "name": "标题位置"
+            },
+            "title_bar_height": {
+                "name": "标题色条高度"
+            },
+            "font_size": {
+                "name": "标题字号"
+            },
+            "text_padding": {
+                "name": "标题间距"
+            },
+            "text_color": {
+                "name": "标题颜色"
+            },
+            "text_align": {
+                "name": "标题对齐"
+            },
+            "output_size": {
+                "name": "图像尺寸"
+            },
+            "layout": {
+                "name": "拼接方式"
+            },
+            "crop_mode": {
+                "name": "裁切方式"
+            },
+            "columns": {
+                "name": "网格列数（0=自动）"
+            },
+            "spacing": {
+                "name": "边距 / 间距"
+            },
+            "background_color": {
+                "name": "背景颜色"
             }
         }
     },

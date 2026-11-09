@@ -7,14 +7,8 @@ from server import PromptServer
 
 NODE_TYPE = "ImagePreviewCompare"
 
-
 def select_preview_targets(request):
-    """被下游引用的预览节点是依赖，不是独立的执行根。
-
-    预览节点接入懒求值分支（如「是否判断」的真时/假时）时，未被选中的分支
-    不会去求值上游；若此时节点仍作为 OUTPUT_NODE 执行，就会在分支未命中时
-    也刷新预览。这里把它从执行目标中剔除，只在被下游真正拉取时才执行。
-    """
+ 
     prompt = request.get("prompt", {})
     previews = {node_id for node_id, node in prompt.items() if node.get("class_type") == NODE_TYPE}
     if not previews:
@@ -35,20 +29,15 @@ def select_preview_targets(request):
             if getattr(comfy_nodes.NODE_CLASS_MAPPINGS.get(node.get("class_type")), "OUTPUT_NODE", False) is True
         ]
     remaining = [node_id for node_id in targets if str(node_id) not in passive]
-    # 极端情况下剔除后会一个输出节点都不剩，保留原请求避免 prompt_no_outputs。
     if not remaining:
         return request
     request["partial_execution_targets"] = remaining
     return request
 
-
 if PromptServer.instance is not None:
     PromptServer.instance.add_on_prompt_handler(select_preview_targets)
 
-
 class ImagePreviewCompare:
-    """A/B 对比预览：并排显示两路图像，A 分支可自动输出。"""
-
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -98,11 +87,6 @@ class ImagePreviewCompare:
             if image_b is not None
             else [],
         }
-        # 与 NO8D-A/B 一致：自动输出开关只控制 A 分支，B 分支始终直通。
         output_a = image_a if auto_output and image_a is not None else ExecutionBlocker(None)
         output_b = image_b if image_b is not None else ExecutionBlocker(None)
         return {"ui": result, "result": (output_a, output_b)}
-
-
-NODE_CLASS_MAPPINGS = {"ImagePreviewCompare": ImagePreviewCompare}
-NODE_DISPLAY_NAME_MAPPINGS = {"ImagePreviewCompare": "Image Preview / Compare"}

@@ -293,5 +293,42 @@
             "model": "模型",
             "trigger_words": "触发词"
         }
+    },
+    "ImageGridTitle": {
+        "outputs": {
+            "image": "图像"
+        },
+        "options": {
+            "layout": {
+                "horizontal": "横向",
+                "vertical": "纵向",
+                "grid": "网格"
+            },
+            "crop_mode": {
+                "none": "不裁切",
+                "standard": "标准裁切",
+                "left": "居左裁切",
+                "center": "居中裁切",
+                "right": "居右裁切"
+            },
+            "title_position": {
+                "outside_top": "图外顶部",
+                "inside_top": "图内顶部",
+                "middle": "中部",
+                "inside_bottom": "图内底部",
+                "outside_bottom": "图外底部"
+            },
+            "text_align": {
+                "left": "居左",
+                "center": "居中",
+                "right": "居右"
+            },
+            "output_size": {
+                "original": "原始尺寸",
+                "1K": "1K",
+                "2K": "2K",
+                "4K": "4K"
+            }
+        }
     }
 }

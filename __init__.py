@@ -54,6 +54,7 @@ from .Nodes.LoraStackLoader import LoraStackLoader
 from .Nodes.VideoPreview import VideoPreview
 from .Nodes.ImageIndexer import ImageIndexer
 from .Nodes.ImagePreviewCompare import ImagePreviewCompare
+from .Nodes.ImageGridTitle import ImageGridTitle
 
 import os
 
@@ -109,6 +110,7 @@ NODE_CLASS_MAPPINGS = {
     "VideoPreview": VideoPreview,
     "ImageIndexer": ImageIndexer,
     "ImagePreviewCompare": ImagePreviewCompare,
+    "ImageGridTitle": ImageGridTitle,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -163,6 +165,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VideoPreview": "Video Preview",
     "ImageIndexer": "Image Indexer",
     "ImagePreviewCompare": "Image Preview / Compare",
+    "ImageGridTitle": "Image Grid & Title",
 }
 
 from . import locale_api
