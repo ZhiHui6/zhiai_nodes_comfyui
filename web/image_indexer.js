@@ -75,7 +75,7 @@ injectPanelStyles("image-indexer", `
     --zin-tile-w: 96px;
     --zin-tile-h: 128px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(0, var(--zin-tile-w)));
+    grid-template-columns: repeat(auto-fill, var(--zin-tile-w));
     grid-auto-rows: var(--zin-tile-h);
     justify-content: start;
     align-content: start;
@@ -190,6 +190,10 @@ injectPanelStyles("image-indexer", `
     font-size: ${PANEL_TOKENS.type.micro};
     color: ${PANEL_TOKENS.color.textFaint};
     text-align: center;
+}
+.pk-panel-host--fill .zin-empty {
+    margin: auto;
+    padding: 10px 0;
 }
 
 .zin-viewer {
@@ -649,6 +653,7 @@ function zinResizeToContent(node) {
     if (!node || typeof node.computeSize !== "function") return;
     window.requestAnimationFrame(() => {
         if (!node.graph || node._zinResizing) return;
+        node._zinPanel?.measure?.();
         const computed = node.computeSize();
         if (!Array.isArray(computed)) return;
         const width = node.size?.[0] ?? computed[0];
@@ -673,6 +678,8 @@ function zinEnsurePanel(node) {
         className: "zin-panel",
         widgetName: "zin_panel",
         minWidth: 0,
+        fill: true,
+        fillMinHeight: 240,
         t: $t,
         icon: zinSvg,
     });

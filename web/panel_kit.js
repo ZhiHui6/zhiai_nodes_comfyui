@@ -1123,6 +1123,49 @@ injectPanelStyles("panel-extra", `
 }
 `);
 
+injectPanelStyles("panel-fill", `
+.pk-panel-host--fill {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+.pk-panel-host--fill .pk-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 0;
+}
+.pk-panel-host--fill .pk-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.pk-panel-host--fill .pk-card__head { flex: 0 0 auto; }
+.pk-panel-host--fill .pk-card__body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.pk-panel-host--fill .pk-card__body > .pk-fields {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(147, 197, 253, 0.45) transparent;
+}
+.pk-panel-host--fill .pk-card__body > .pk-fields::-webkit-scrollbar { width: 6px; }
+.pk-panel-host--fill .pk-card__body > .pk-fields::-webkit-scrollbar-track { background: transparent; }
+.pk-panel-host--fill .pk-card__body > .pk-fields::-webkit-scrollbar-thumb {
+    background: rgba(147, 197, 253, 0.45);
+    border-radius: 3px;
+}
+.pk-panel-host--fill .pk-card__body > .pk-fields::-webkit-scrollbar-thumb:hover {
+    background: rgba(147, 197, 253, 0.7);
+}
+`);
+
 injectPanelStyles("popover-theme", `
 @supports (appearance: base-select) {
     .pk-select {
@@ -2201,9 +2244,14 @@ export function createPanel(options) {
         ? opts.tooltip
         : { show: showPanelTooltip, hide: hidePanelTooltip };
     const attachFolderPicker = typeof opts.folderPicker === "function" ? opts.folderPicker : null;
+    const fillHeight = opts.fill === true;
+    const fillMinHeight = typeof opts.fillMinHeight === "number" ? opts.fillMinHeight : 180;
+    const fillMarginSlack = 24;
 
     const host = document.createElement("div");
-    host.className = "pk-panel-host" + (opts.className ? " " + opts.className : "");
+    host.className = "pk-panel-host"
+        + (fillHeight ? " pk-panel-host--fill" : "")
+        + (opts.className ? " " + opts.className : "");
 
     const panel = document.createElement("div");
     panel.className = "pk-panel";
@@ -2443,20 +2491,47 @@ export function createPanel(options) {
         });
     };
 
+    let naturalHeight = 0;
+    const measureNaturalHeight = () => {
+        if (!host.isConnected || panel.clientWidth <= 0) return naturalHeight;
+        let total = 0;
+        cards.forEach(({ head, fields }) => {
+            total += head?.offsetHeight || 0;
+            if (!fields) return;
+            const style = getComputedStyle(fields);
+            const gap = parseFloat(style.rowGap) || 0;
+            Array.from(fields.children).forEach((child, index) => {
+                total += child.offsetHeight || 0;
+                if (index > 0) total += gap;
+            });
+            total += (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+        });
+        naturalHeight = Math.round(total);
+        return naturalHeight;
+    };
+
     const detachWheel = attachWheelForwarding(host);
     const detachMiddlePan = attachMiddleDragPan(host);
     const detachContextMenu = attachNodeContextMenu(host, node);
 
     const domWidget = node.addDOMWidget(opts.widgetName, "div", host, {});
     domWidget.serialize = false;
-    domWidget.computeSize = (width) => {
-        const nodeWidth = Math.max(minWidth, width || Math.round(node?.size?.[0] || minWidth));
-        if (panel.clientWidth < nodeWidth - 32) {
-            const cached = _pkLastHeights.get(panel);
-            return [nodeWidth, (cached > 0 ? Math.max(28, Math.round(cached)) : 28) + 2];
-        }
-        return [nodeWidth, measureElementHeight(panel, 28) + 2];
-    };
+    if (fillHeight) {
+        domWidget.computeLayoutSize = () => ({
+            minHeight: Math.max(fillMinHeight, naturalHeight + fillMarginSlack),
+            maxHeight: 1000000,
+            minWidth: 0,
+        });
+    } else {
+        domWidget.computeSize = (width) => {
+            const nodeWidth = Math.max(minWidth, width || Math.round(node?.size?.[0] || minWidth));
+            if (panel.clientWidth < nodeWidth - 32) {
+                const cached = _pkLastHeights.get(panel);
+                return [nodeWidth, (cached > 0 ? Math.max(28, Math.round(cached)) : 28) + 2];
+            }
+            return [nodeWidth, measureElementHeight(panel, 28) + 2];
+        };
+    }
     applyDependencies();
 
     const api = {
@@ -2504,6 +2579,13 @@ export function createPanel(options) {
                     console.error("[panel-kit] panel resize failed:", err);
                 }
             });
+        },
+        measure() {
+            if (!fillHeight) return 0;
+            const previous = naturalHeight;
+            const next = measureNaturalHeight();
+            if (next !== previous) node?.setDirtyCanvas?.(true, true);
+            return next;
         },
 
         destroy() {

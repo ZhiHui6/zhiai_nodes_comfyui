@@ -341,6 +341,8 @@ function renderMarkdown(source) {
 
 const SHOW_ANY_MIN_WIDTH = 347;
 const SHOW_ANY_MIN_HEIGHT = 200;
+const SHOW_ANY_WIDGET_MARGIN = 10;
+const SHOW_ANY_MIN_WIDGET_HEIGHT = 120;
 
 const SHOW_ANY_CSS = `
 .sa-box {
@@ -348,6 +350,8 @@ const SHOW_ANY_CSS = `
     flex-direction: column;
     width: 100%;
     height: 100%;
+    min-width: 0;
+    max-width: 100%;
     box-sizing: border-box;
     overflow: hidden;
     background: rgba(3, 9, 18, 0.62);
@@ -413,13 +417,25 @@ function injectShowAnyStyles() {
 }
 
 function clampShowAnySize(node) {
-    if (!node) return false;
+    if (!node || node._showAnyClamping) return false;
     const width = Math.max(node.size?.[0] || 0, SHOW_ANY_MIN_WIDTH);
     const height = Math.max(node.size?.[1] || 0, SHOW_ANY_MIN_HEIGHT);
     if (node.size && node.size[0] === width && node.size[1] === height) return false;
-    if (typeof node.setSize === "function") node.setSize([width, height]);
-    else node.size = [width, height];
+    node._showAnyClamping = true;
+    try {
+        if (typeof node.setSize === "function") node.setSize([width, height]);
+        else node.size = [width, height];
+    } finally {
+        node._showAnyClamping = false;
+    }
     return true;
+}
+
+function syncShowAnyWidgetWidth(node) {
+    const widget = node && node.__showAnyWidget;
+    if (!widget || !node.size) return;
+    const width = Math.max(node.size[0] || 0, SHOW_ANY_MIN_WIDTH);
+    if (widget.width !== width) widget.width = width;
 }
 
 function widestInlineWidth(texts, fontCss) {
@@ -721,8 +737,17 @@ app.registerExtension({
                 host.appendChild(itemsContainer);
                 host.appendChild(footer);
 
-                const domWidget = node.addDOMWidget("showany_preview", "div", host, {});
+                const domWidget = node.addDOMWidget("showany_preview", "div", host, {
+                    margin: SHOW_ANY_WIDGET_MARGIN,
+                });
                 domWidget.serialize = false;
+                domWidget.computeLayoutSize = () => ({
+                    minHeight: SHOW_ANY_MIN_WIDGET_HEIGHT,
+                    maxHeight: 1000000,
+                    minWidth: 0,
+                });
+                domWidget.width = Math.max(node.size?.[0] || SHOW_ANY_MIN_WIDTH, SHOW_ANY_MIN_WIDTH);
+                node.__showAnyWidget = domWidget;
 
                 node.__showAnyPreview = {
                     host,
@@ -764,7 +789,7 @@ app.registerExtension({
                 node.__showAnyPreview.radioStandard.input.addEventListener("change", onModeChange);
                 node.__showAnyPreview.radioMarkdown.input.addEventListener("change", onModeChange);
 
-                clampShowAnySize(node);
+                if (node.graph) clampShowAnySize(node);
             }
 
             function updatePreview(node, data) {
@@ -826,6 +851,16 @@ app.registerExtension({
                 return r;
             };
 
+            const onAdded = nodeType.prototype.onAdded;
+            nodeType.prototype.onAdded = function () {
+                const r = onAdded?.apply(this, arguments);
+                requestAnimationFrame(() => {
+                    clampShowAnySize(this);
+                    syncShowAnyWidgetWidth(this);
+                });
+                return r;
+            };
+
             const onExecuted = nodeType.prototype.onExecuted;
             nodeType.prototype.onExecuted = function (message) {
                 onExecuted?.apply(this, arguments);
@@ -837,6 +872,7 @@ app.registerExtension({
                 const r = onConfigure?.apply(this, arguments);
                 setTimeout(() => {
                     clampShowAnySize(this);
+                    syncShowAnyWidgetWidth(this);
                     this.setDirtyCanvas?.(true, true);
                 }, 0);
                 return r;
@@ -848,11 +884,13 @@ app.registerExtension({
                 if (size && (size[0] < SHOW_ANY_MIN_WIDTH || size[1] < SHOW_ANY_MIN_HEIGHT)) {
                     clampShowAnySize(this);
                 }
+                syncShowAnyWidgetWidth(this);
                 return r;
             };
 
             const onDrawForeground = nodeType.prototype.onDrawForeground;
             nodeType.prototype.onDrawForeground = function (ctx) {
+                syncShowAnyWidgetWidth(this);
                 const currentLocale = getLocale();
                 if (this._showAnyLocale !== currentLocale) {
                     this._showAnyLocale = currentLocale;
