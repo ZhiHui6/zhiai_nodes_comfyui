@@ -1,7 +1,7 @@
 import { app } from "/scripts/app.js";
 import { drawNodeHelpButton, drawNodeSettingsButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 import { createHelpPopupElement } from "./node_help_common.js";
-import { attachMiddleDragPan, watchNodeModeVisual } from "./panel_kit.js";
+import { attachMiddleDragPan, attachWheelForwarding, watchNodeModeVisual } from "./panel_kit.js";
 
 const i18n = {
     zh: {
@@ -440,6 +440,7 @@ app.registerExtension({
                 this.customUI = container;
                 watchNodeModeVisual(this, container);
                 attachMiddleDragPan(container);
+                attachWheelForwarding(container);
                 this.bindUIEvents();
                 this.updateModeIndicator();
                 this.updateGroupsList();
@@ -531,7 +532,7 @@ app.registerExtension({
                 }
 
                 .gmm-dropdown-trigger {
-                    background: rgba(4, 11, 22, 0.66);
+                    background: #0B1526;
                     border: 1px solid rgba(96, 165, 250, 0.18);
                     border-radius: 6px;
                     padding: 4px 8px;
@@ -542,21 +543,24 @@ app.registerExtension({
                     align-items: center;
                     justify-content: space-between;
                     gap: 6px;
+                    box-shadow: none;
                     transition: border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
                                 background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
                                 color 140ms cubic-bezier(0.22, 1, 0.36, 1);
                 }
 
                 .gmm-dropdown-trigger:hover {
-                    background: rgba(8, 18, 34, 0.80);
+                    background: #13243E;
                     border-color: rgba(147, 197, 253, 0.42);
                     color: #F2FAFF;
+                    box-shadow: none;
                 }
 
                 .gmm-custom-dropdown.open .gmm-dropdown-trigger {
                     border-color: #3B82F6;
-                    background: rgba(59, 130, 246, 0.08);
+                    background: #0E1E36;
                     color: #F2FAFF;
+                    box-shadow: none;
                 }
 
                 .gmm-dropdown-text {
@@ -584,7 +588,7 @@ app.registerExtension({
                     top: calc(100% + 4px);
                     left: 0;
                     right: 0;
-                    background: rgba(5, 11, 22, 0.88);
+                    background: #0B1526;
                     border: 1px solid rgba(147, 197, 253, 0.42);
                     border-radius: 8px;
                     padding: 4px;
@@ -595,9 +599,7 @@ app.registerExtension({
                     pointer-events: none;
                     transition: opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
                                 transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
-                    box-shadow: 0 10px 26px rgba(2, 6, 23, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.07);
-                    backdrop-filter: blur(10px) saturate(1.3);
-                    -webkit-backdrop-filter: blur(10px) saturate(1.3);
+                    box-shadow: none;
                     max-height: 200px;
                     overflow-y: auto;
                     scrollbar-width: thin;
@@ -729,6 +731,7 @@ app.registerExtension({
                     border: none;
                     border-radius: 0;
                     padding: 0;
+                    margin: 0;
                     width: 18px;
                     height: 18px;
                     cursor: pointer;
@@ -871,7 +874,6 @@ app.registerExtension({
                 .gmm-switch.active {
                     background: #2563EB;
                     border-color: #3B82F6;
-                    box-shadow: 0 0 8px rgba(59, 130, 246, 0.85);
                 }
 
                 .gmm-switch.active svg {
@@ -924,7 +926,6 @@ app.registerExtension({
                 .gmm-linkage-button.active {
                     background: #2563EB;
                     border-color: #3B82F6;
-                    box-shadow: 0 0 8px rgba(59, 130, 246, 0.7);
                 }
 
                 .gmm-linkage-button.active svg {
@@ -971,6 +972,26 @@ app.registerExtension({
 
                 .gmm-navigate-button:hover svg {
                     stroke: #93C5FD;
+                }
+
+                .gmm-switch svg > *,
+                .gmm-linkage-button svg > *,
+                .gmm-navigate-button svg > * {
+                    stroke: #4E617E !important;
+                }
+
+                .gmm-switch:hover svg > *,
+                .gmm-linkage-button:hover svg > * {
+                    stroke: #F2FAFF !important;
+                }
+
+                .gmm-navigate-button:hover svg > * {
+                    stroke: #93C5FD !important;
+                }
+
+                .gmm-switch.active svg > *,
+                .gmm-linkage-button.active svg > * {
+                    stroke: #FFFFFF !important;
                 }
 
                 @keyframes gmmFadeIn {
@@ -1071,18 +1092,27 @@ app.registerExtension({
                     background: #DC2626;
                     border: none;
                     color: #FFFFFF;
-                    font-size: 14px;
-                    line-height: 20px;
-                    text-align: center;
+                    padding: 0;
+                    line-height: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-sizing: border-box;
                     cursor: pointer;
-                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
-                                box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
+                    margin: 0;
+                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     flex-shrink: 0;
+                }
+
+                .gmm-dialog-close svg {
+                    display: block;
+                    width: 10px;
+                    height: 10px;
+                    pointer-events: none;
                 }
 
                 .gmm-dialog-close:hover {
                     background: #EF4444;
-                    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
                 }
 
                 .gmm-dialog-backdrop {
@@ -1137,13 +1167,12 @@ app.registerExtension({
                     line-height: 18px;
                     text-align: center;
                     cursor: pointer;
-                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
-                                box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
+                    margin: 0;
+                    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1);
                 }
 
                 .gmm-add-rule:hover {
                     background: #3B82F6;
-                    box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
                 }
 
                 .gmm-rules-list {
@@ -1174,15 +1203,16 @@ app.registerExtension({
                     font-size: 11.5px;
                     width: 100%;
                     box-sizing: border-box;
-                    background: rgba(3, 8, 18, 0.72);
+                    background: #081120;
                     border-color: rgba(96, 165, 250, 0.26);
                     color: #EAF3FF;
                 }
 
                 .gmm-rule-item .gmm-dropdown-trigger:hover {
-                    background: rgba(8, 18, 34, 0.90);
+                    background: #10203A;
                     border-color: rgba(147, 197, 253, 0.55);
                     color: #FFFFFF;
+                    box-shadow: none;
                 }
 
                 .gmm-rule-item .gmm-dropdown-arrow {
@@ -1208,10 +1238,10 @@ app.registerExtension({
                     color: #FFFFFF;
                     font-size: 13px;
                     cursor: pointer;
+                    margin: 0;
                     transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
                                 border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
-                                color 140ms cubic-bezier(0.22, 1, 0.36, 1),
-                                box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
+                                color 140ms cubic-bezier(0.22, 1, 0.36, 1);
                     flex-shrink: 0;
                     display: flex;
                     align-items: center;
@@ -1222,7 +1252,6 @@ app.registerExtension({
                     background: #EF4444;
                     border-color: transparent;
                     color: #FFFFFF;
-                    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.42);
                 }
 
                 .gmm-dialog-footer {
@@ -1243,6 +1272,7 @@ app.registerExtension({
                     cursor: pointer;
                     font-size: 12.5px;
                     font-weight: 500;
+                    margin: 0;
                     transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
                                 border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
                                 color 140ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -1264,7 +1294,6 @@ app.registerExtension({
                     background: #3B82F6;
                     border-color: transparent;
                     color: #FFFFFF;
-                    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
                 }
 
                 .gmm-settings-dialog {
@@ -1335,12 +1364,13 @@ app.registerExtension({
                     padding: 6px 10px;
                     font-size: 12.5px;
                     width: 100%;
-                    background: rgba(30, 41, 59, 0.62);
+                    background: #0B1526;
                     border-color: rgba(96, 165, 250, 0.24);
                 }
 
                 .gmm-settings-dialog .gmm-dropdown-trigger:hover {
-                    background: rgba(38, 52, 73, 0.78);
+                    background: #13243E;
+                    box-shadow: none;
                 }
 
                 .gmm-drag-handle {
@@ -1435,6 +1465,62 @@ app.registerExtension({
                     display: flex;
                     align-items: center;
                     width: 100%;
+                }
+
+                .gmm-container,
+                .gmm-settings-dialog,
+                .gmm-linkage-dialog {
+                    color-scheme: dark;
+                }
+
+                .gmm-container select,
+                .gmm-settings-dialog select,
+                .gmm-linkage-dialog select {
+                    appearance: none;
+                    -webkit-appearance: none;
+                    width: 100%;
+                    margin: 0;
+                    padding: 6px 28px 6px 10px;
+                    background-color: #0B1526;
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2393C5FD' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+                    background-repeat: no-repeat;
+                    background-position: right 8px center;
+                    border: 1px solid rgba(96, 165, 250, 0.24);
+                    border-radius: 6px;
+                    color: #E6F0FA;
+                    font-size: 12.5px;
+                    line-height: 1.4;
+                    cursor: pointer;
+                    outline: none;
+                    box-shadow: none;
+                }
+
+                .gmm-container select:hover,
+                .gmm-settings-dialog select:hover,
+                .gmm-linkage-dialog select:hover {
+                    background-color: #13243E;
+                    border-color: rgba(147, 197, 253, 0.42);
+                    box-shadow: none;
+                }
+
+                .gmm-container select:focus,
+                .gmm-settings-dialog select:focus,
+                .gmm-linkage-dialog select:focus {
+                    border-color: #3B82F6;
+                }
+
+                .gmm-container select option,
+                .gmm-settings-dialog select option,
+                .gmm-linkage-dialog select option {
+                    background-color: #0B1526;
+                    color: #E6F0FA;
+                }
+
+                .gmm-container select option:checked,
+                .gmm-settings-dialog select option:checked,
+                .gmm-linkage-dialog select option:checked {
+                    background-color: #1B3A63;
+                    color: #FFFFFF;
                 }
             `;
             document.head.appendChild(style);
@@ -2458,7 +2544,7 @@ app.registerExtension({
             dialog.innerHTML = `
                 <div class="gmm-dialog-header">
                     <h3>${t('settings')}</h3>
-                    <button class="gmm-dialog-close">×</button>
+                    <button class="gmm-dialog-close" aria-label="Close"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
                 </div>
                 <div class="gmm-settings-dialog-content">
                     <div class="gmm-settings-dialog-item">
@@ -2598,7 +2684,7 @@ app.registerExtension({
             dialog.innerHTML = `
                 <div class="gmm-dialog-header">
                     <h3>${t('linkageConfig')}${displayName}</h3>
-                    <button class="gmm-dialog-close">×</button>
+                    <button class="gmm-dialog-close" aria-label="Close"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
                 </div>
                 <div class="gmm-settings-dialog-content">
                     <div class="gmm-linkage-section">
