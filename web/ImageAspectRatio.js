@@ -4,6 +4,8 @@ import { drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_
 const i18n = {
     zh: {
         swapSize: "🔃 尺寸互换",
+        swapTitle: "尺寸互换：宽高对调",
+        swapLabel: "尺寸互换",
         nodeTitle: "图像纵横比节点",
         description: "用于设置图像的纵横比和尺寸，支持多种模型的预设尺寸，可快速选择常用比例或自定义尺寸。",
         featuresTitle: "功能",
@@ -26,6 +28,8 @@ const i18n = {
     },
     en: {
         swapSize: "🔃 Swap Size",
+        swapTitle: "Swap width and height",
+        swapLabel: "Swap Size",
         nodeTitle: "Image Aspect Ratio Node",
         description: "Used to set image aspect ratio and dimensions, supporting preset dimensions for multiple models, with quick selection of common ratios or custom sizes.",
         featuresTitle: "Features",
@@ -115,6 +119,111 @@ function createHelpPopup(description, onClose) {
 
 let aspectRatioPresetsCache = null;
 
+const SWAP_BTN_LEFT = 14;
+const SWAP_BTN_TOP = 20;
+const SWAP_BTN_HEIGHT = 24;
+const SWAP_STYLE_ID = "zhiai-aspect-swap-style";
+const SWAP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h14.8"/><path d="M16 3.5 20 6.5l-4 3"/><path d="M20 17.5H5.2"/><path d="M8 14.5 4 17.5l4 3"/></svg>`;
+
+function installSwapStyle() {
+    if (document.getElementById(SWAP_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = SWAP_STYLE_ID;
+    style.textContent = `
+.zhiai-aspect-swap {
+    position: absolute;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-sizing: border-box;
+    height: ${SWAP_BTN_HEIGHT}px;
+    padding: 0 8px;
+    border: 1px solid rgba(96, 165, 250, 0.35);
+    border-radius: 7px;
+    background: linear-gradient(160deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+    color: #93c5fd;
+    cursor: pointer;
+    transform-origin: 0 0;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+    font: 600 12px/1 "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 600;
+}
+.zhiai-aspect-swap:hover {
+    border-color: rgba(147, 197, 253, 0.85);
+    background: linear-gradient(160deg, rgba(59, 130, 246, 0.4), rgba(30, 64, 175, 0.45));
+    color: #eff6ff;
+}
+.zhiai-aspect-swap:focus { outline: none; }
+.zhiai-aspect-swap svg { display: block; width: 15px; height: 15px; flex: none; pointer-events: none; }
+.zhiai-aspect-swap span { pointer-events: none; }
+`;
+    document.head.appendChild(style);
+}
+
+function createSwapButton(node) {
+    installSwapStyle();
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "zhiai-aspect-swap";
+    btn.innerHTML = `${SWAP_ICON}<span>${$t("swapLabel")}</span>`;
+    btn.title = $t("swapTitle");
+    btn.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+    btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        node.swapAll?.();
+    });
+    document.body.appendChild(btn);
+    return btn;
+}
+
+function positionSwapButton(node, ctx) {
+    const btn = node._zhiaiSwapBtn;
+    if (!btn) return;
+    const canvasEl = ctx && ctx.canvas;
+    if (!canvasEl || node.flags?.collapsed || !canvasEl.width) {
+        if (btn.style.display !== "none") btn.style.display = "none";
+        return;
+    }
+    const rect = canvasEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+        if (btn.style.display !== "none") btn.style.display = "none";
+        return;
+    }
+    const matrix = new DOMMatrix()
+        .scaleSelf(rect.width / canvasEl.width, rect.height / canvasEl.height)
+        .multiplySelf(ctx.getTransform());
+    const zoom = Math.hypot(matrix.a, matrix.b) || 1;
+    const left = matrix.a * SWAP_BTN_LEFT + matrix.c * SWAP_BTN_TOP + matrix.e + rect.left;
+    const top = matrix.b * SWAP_BTN_LEFT + matrix.d * SWAP_BTN_TOP + matrix.f + rect.top;
+    const width = btn.offsetWidth * zoom;
+    const height = btn.offsetHeight * zoom;
+    const visible = left + width > rect.left && top + height > rect.top;
+    if (!visible) {
+        if (btn.style.display !== "none") btn.style.display = "none";
+        return;
+    }
+    btn.style.left = `${left}px`;
+    btn.style.top = `${top}px`;
+    btn.style.transform = `scale(${zoom})`;
+    if (btn.style.display !== "flex") btn.style.display = "flex";
+}
+
+function destroySwapButton(node) {
+    const btn = node._zhiaiSwapBtn;
+    if (!btn) return;
+    btn.remove();
+    node._zhiaiSwapBtn = null;
+}
+
 app.registerExtension({
     name: "ImageAspectRatio",
 
@@ -149,6 +258,8 @@ app.registerExtension({
                         w.hidden = true;
                     }
                 }
+
+                this._zhiaiSwapBtn = createSwapButton(this);
 
                 const PRESETS_DATA = aspectRatioPresetsCache || {};
 
@@ -291,6 +402,10 @@ app.registerExtension({
                         "1:2.35": "2.35:1",
                         "4:5": "5:4",
                         "5:4": "4:5",
+                        "2:1": "1:2",
+                        "1:2": "2:1",
+                        "3:1": "1:3",
+                        "1:3": "3:1",
                     };
                     return swapMap[ratio] || ratio;
                 };
@@ -310,7 +425,6 @@ app.registerExtension({
                     const widthIdx = widgets.findIndex(w => w && w.name === "custom_width");
                     const heightIdx = widgets.findIndex(w => w && w.name === "custom_height");
                     const lockIdx = widgets.findIndex(w => w && w.name === "aspect_lock");
-                    const swapIdx = widgets.findIndex(w => w && w.name === $t('swapSize'));
                     
                     if (modeIdx < 0 || categoryIdx < 0 || sizeIdx < 0 || widthIdx < 0 || heightIdx < 0 || lockIdx < 0) return;
                     
@@ -319,7 +433,6 @@ app.registerExtension({
                     const widthWidget = widgets[widthIdx];
                     const heightWidget = widgets[heightIdx];
                     const lockWidget = widgets[lockIdx];
-                    let swapWidget = swapIdx >= 0 ? widgets[swapIdx] : null;
                     
                     if (!isCustom) {
                         this.lastCustomSize = {
@@ -328,7 +441,7 @@ app.registerExtension({
                         };
                     }
                     
-                    const indicesToRemove = [categoryIdx, sizeIdx, widthIdx, heightIdx, lockIdx, swapIdx].filter(idx => idx >= 0).sort((a, b) => b - a);
+                    const indicesToRemove = [categoryIdx, sizeIdx, widthIdx, heightIdx, lockIdx].filter(idx => idx >= 0).sort((a, b) => b - a);
                     for (const idx of indicesToRemove) {
                         widgets.splice(idx, 1);
                     }
@@ -336,39 +449,16 @@ app.registerExtension({
                     if (isCustom) {
                         widgets.splice(modeIdx + 1, 0, widthWidget, heightWidget, lockWidget);
                         
-                        if (!swapWidget) {
-                            swapWidget = this.addWidget("button", $t('swapSize'), null, () => {
-                                this.swapAll();
-                            });
-                            const curIdx = widgets.indexOf(swapWidget);
-                            if (curIdx >= 0) widgets.splice(curIdx, 1);
-                        }
-
-                        widgets.push(swapWidget);
-                        
                         categoryWidget.hidden = true;
                         sizeWidget.hidden = true;
                         widthWidget.hidden = false;
                         heightWidget.hidden = false;
                         lockWidget.hidden = false;
-                        if (swapWidget) {
-                            swapWidget.hidden = false;
-                        }
                         widthWidget.value = this.lastCustomSize.width;
                         heightWidget.value = this.lastCustomSize.height;
                         widgets.push(categoryWidget, sizeWidget);
                     } else {
                         widgets.splice(modeIdx + 1, 0, categoryWidget, sizeWidget);
-                        
-                        if (!swapWidget) {
-                            swapWidget = this.addWidget("button", $t('swapSize'), null, () => {
-                                this.swapAll();
-                            });
-                            const curIdx = widgets.indexOf(swapWidget);
-                            if (curIdx >= 0) widgets.splice(curIdx, 1);
-                        }
-                        
-                        widgets.splice(modeIdx + 3, 0, swapWidget);
                         
                         categoryWidget.hidden = false;
                         sizeWidget.hidden = false;
@@ -376,9 +466,6 @@ app.registerExtension({
                         heightWidget.hidden = true;
                         lockWidget.hidden = true;
                         widgets.push(widthWidget, heightWidget, lockWidget);
-                        if (swapWidget) {
-                            swapWidget.hidden = false;
-                        }
                     }
                     
                     app.graph.setDirtyCanvas(true, true);
@@ -597,6 +684,7 @@ app.registerExtension({
                 }
                 
                 const r = drawFg ? drawFg.apply(this, arguments) : undefined;
+                positionSwapButton(this, ctx);
                 if (this.flags.collapsed) return r;
 
                 const x = this.size[0] - iconSize - iconMargin;
@@ -703,6 +791,7 @@ app.registerExtension({
                     helpElement = null;
                     currentHelpLocale = null;
                 }
+                destroySwapButton(this);
                 return r;
             };
         }
