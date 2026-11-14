@@ -4,6 +4,7 @@ import { api } from "/scripts/api.js";
 const EXTENSION_NAME = "ZhiAI.HardwareMonitor";
 const SETTING_ID = "ZhiAI.HardwareMonitor.Enabled";
 const UNIT_SETTING_ID = "ZhiAI.HardwareMonitor.MemoryPercent";
+const COMPACT_SETTING_ID = "ZhiAI.HardwareMonitor.Compact";
 const ROOT_ID = "zhiai-hardware-monitor";
 const ENDPOINT = "/zhiai_nodes/hardware_monitor";
 const POLL_INTERVAL = 1000;
@@ -17,14 +18,28 @@ const ICONS = {
 };
 
 const TEXT = {
-	settingCategory: "Topbar Hardware Monitor",
-	settingName: "Show hardware status in the top bar",
-	settingUnitName: "Show RAM and VRAM as percentage",
-	cpu: "CPU",
-	gpu: "GPU",
-	ram: "RAM",
-	vram: "VRAM",
-	temp: "GPU Temp",
+	en: {
+		settingCategory: "Topbar Hardware Monitor",
+		settingName: "Show hardware status in the top bar",
+		settingUnitName: "Show RAM and VRAM as percentage",
+		settingCompactName: "Compact display",
+		cpu: "CPU",
+		gpu: "GPU",
+		ram: "RAM",
+		vram: "VRAM",
+		temp: "GPU Temp",
+	},
+	zh: {
+		settingCategory: "顶栏硬件监测",
+		settingName: "在顶栏显示硬件状态",
+		settingUnitName: "以百分比显示 RAM 和 VRAM",
+		settingCompactName: "简化显示",
+		cpu: "CPU",
+		gpu: "GPU",
+		ram: "RAM",
+		vram: "VRAM",
+		temp: "GPU Temp",
+	},
 };
 
 const METRICS = [
@@ -60,6 +75,12 @@ const STYLE = `
 #${ROOT_ID} .zhiai-hw-item[data-metric="ram"] .zhiai-hw-icon{color:#10b981;}
 #${ROOT_ID} .zhiai-hw-item[data-metric="vram"] .zhiai-hw-icon{color:#06b6d4;}
 #${ROOT_ID} .zhiai-hw-item[data-metric="temp"] .zhiai-hw-icon{color:#ef4444;}
+#${ROOT_ID}.zhiai-hw-compact{margin-right:0;grid-template-columns:131px 165px;}
+#${ROOT_ID}.zhiai-hw-compact.zhiai-hw-percent{grid-template-columns:131px 143px;}
+#${ROOT_ID}.zhiai-hw-compact .zhiai-hw-item[data-metric="ram"] .zhiai-hw-value,
+#${ROOT_ID}.zhiai-hw-compact .zhiai-hw-item[data-metric="vram"] .zhiai-hw-value{text-align:right;}
+#${ROOT_ID}.zhiai-hw-compact .zhiai-hw-brand{display:none;}
+#${ROOT_ID}.zhiai-hw-compact .zhiai-hw-item[data-metric="temp"]{display:none;}
 `;
 
 const ROW_KEYS = [["cpu", "ram"], ["gpu", "vram", "temp"]];
@@ -67,6 +88,7 @@ const ROW_KEYS = [["cpu", "ram"], ["gpu", "vram", "temp"]];
 const state = {
 	enabled: true,
 	memoryPercent: false,
+	compact: false,
 	timer: null,
 	inFlight: false,
 	root: null,
@@ -75,8 +97,13 @@ const state = {
 	lastData: null,
 };
 
+function getLocale() {
+	const locale = app?.ui?.settings?.getSettingValue?.("Comfy.Locale");
+	return locale === "zh-CN" || locale === "zh" ? "zh" : "en";
+}
+
 function t(key) {
-	return TEXT[key] ?? key;
+	return TEXT[getLocale()][key] ?? TEXT.en[key] ?? key;
 }
 
 function formatPercent(value) {
@@ -290,6 +317,11 @@ function applyMemoryPercent(enabled) {
 	if (state.lastData) render(state.lastData);
 }
 
+function applyCompact(enabled) {
+	state.compact = enabled === true;
+	if (state.root) state.root.classList.toggle("zhiai-hw-compact", state.compact);
+}
+
 function mount() {
 	const target = app.menu?.settingsGroup?.element;
 	if (state.root?.isConnected) return true;
@@ -328,9 +360,18 @@ function registerSetting() {
 		defaultValue: false,
 		onChange: (value) => applyMemoryPercent(value),
 	});
+	settings.addSetting({
+		id: COMPACT_SETTING_ID,
+		name: t("settingCompactName"),
+		category: ["ZhiAI", t("settingCategory"), "Compact"],
+		type: "boolean",
+		defaultValue: false,
+		onChange: (value) => applyCompact(value),
+	});
 	try {
 		settings.addEventListener(`${SETTING_ID}.change`, (event) => applyEnabled(event?.detail?.value));
 		settings.addEventListener(`${UNIT_SETTING_ID}.change`, (event) => applyMemoryPercent(event?.detail?.value));
+		settings.addEventListener(`${COMPACT_SETTING_ID}.change`, (event) => applyCompact(event?.detail?.value));
 	} catch (error) {
 	}
 }
@@ -345,6 +386,8 @@ app.registerExtension({
 		mountWithRetry();
 		const storedUnit = app.ui?.settings?.getSettingValue?.(UNIT_SETTING_ID);
 		applyMemoryPercent(!!storedUnit);
+		const storedCompact = app.ui?.settings?.getSettingValue?.(COMPACT_SETTING_ID);
+		applyCompact(!!storedCompact);
 		const stored = app.ui?.settings?.getSettingValue?.(SETTING_ID);
 		applyEnabled(stored === undefined ? true : !!stored);
 	},

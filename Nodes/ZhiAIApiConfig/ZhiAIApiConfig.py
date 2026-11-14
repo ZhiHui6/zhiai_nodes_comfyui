@@ -128,10 +128,6 @@ class ZhiAIApiConfig:
             "Content-Type": "application/json"
         }
         
-        if platform == "openrouter":
-            headers["HTTP-Referer"] = "https://github.com"
-            headers["X-Title"] = "ComfyUI ZhiAI Nodes"
-        
         data = {
             "model": model,
             "messages": [

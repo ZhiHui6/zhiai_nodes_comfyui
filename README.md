@@ -973,7 +973,7 @@
 </table>
 
 <b>使用说明</b>：
-- <b>开关设置</b>：ComfyUI 设置 → <b>ZhiAI</b> → <b>Topbar Hardware Monitor</b>，可分别控制顶栏显示开关与「RAM/VRAM 以百分比显示」，修改后立即生效。
+- <b>开关设置</b>：ComfyUI 设置 → <b>ZhiAI</b> → <b>顶栏硬件监测</b>，可分别控制顶栏显示开关、「RAM/VRAM 以百分比显示」与「简化显示」（隐藏标题与显卡温度，以 2×2 布局显示），修改后立即生效。
 - <b>刷新频率</b>：每秒刷新一次；窗口最小化或页面隐藏时暂停轮询。
 - <b>空闲零开销</b>：后端仅在存在请求时采样，连续 60 秒无请求即停止采样线程。
 - <b>GPU 数据来源</b>：通过 NVML（`nvidia-ml-py` + NVIDIA 驱动）读取；未检测到 NVML 时，GPU 三项自动隐藏，只保留 CPU 与 RAM。
@@ -1015,7 +1015,7 @@ git clone https://github.com/ZhiHui6/zhiai_nodes_comfyui.git
 ### 🔑 首次使用配置
 
 - **联网需求**：翻译、AI 扩写、在线图像理解会调用远端接口；文本处理、图像与 Latent 类节点完全本地运行。
-- **LLM 平台密钥**：打开 ComfyUI 的「设置」面板 → **ZhiAI** → 点击「📝 API 设置」，即可为 OpenAI、Google、ZhipuAI、DeepSeek、SiliconFlow、MoonshotAI、MiniMax、Alibaba、VolcEngine、Tencent、ModelScope、NVIDIA 以及自定义接口填写 API Key、Base URL 与模型名称，并支持测试连接。标签选择器的 AI 扩写直接读取这套配置（`platform` 选择 auto 时自动挑用可用平台），图像理解在线版的接口配置也与之共用同一份存储。
+- **LLM 平台密钥**：打开 ComfyUI 的「设置」面板 → **ZhiAI** → 点击「📝 API 设置」，即可为 OpenAI、Google、ZhipuAI、DeepSeek、SiliconFlow、MoonshotAI、MiniMax、Alibaba、VolcEngine、Tencent、ModelScope 以及自定义接口填写 API Key、Base URL 与模型名称，并支持测试连接。标签选择器的 AI 扩写直接读取这套配置（`platform` 选择 auto 时自动挑用可用平台），图像理解在线版的接口配置也与之共用同一份存储。
 - **翻译平台密钥**：点击「多平台翻译」节点标题栏帮助按钮左侧的齿轮按钮，分别填写百度、阿里云、有道、智谱AI、谷歌在线的密钥。
 - **LM Studio**：需要本机运行 LM Studio 并开启本地服务器（默认端口 1234），详见上文该节点的「前置要求」。
 

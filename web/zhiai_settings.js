@@ -34,9 +34,7 @@ const i18n = {
         platformKimi: "月之暗面",
         platformMiniMax: "稀宇科技",
         platformQwen: "阿里云",
-        platformOpenRouter: "OpenRouter",
         platformTencent: "腾讯",
-        platformNVIDIA: "英伟达",
         platformCustom: "自定义"
     },
     en: {
@@ -71,9 +69,7 @@ const i18n = {
         platformKimi: "MoonshotAI",
         platformMiniMax: "MiniMax",
         platformQwen: "Alibaba",
-        platformOpenRouter: "OpenRouter",
         platformTencent: "Tencent",
-        platformNVIDIA: "NVIDIA",
         platformCustom: "User-defined"
     }
 };
@@ -541,8 +537,6 @@ const platformDefaults = {
     volcengine: { base_url: "https://ark.cn-beijing.volces.com/api/v3", model: "doubao-1-5-pro-32k" },
     tencent: { base_url: "https://api.hunyuan.cloud.tencent.com/v1", model: "hunyuan-pro" },
     modelscope: { base_url: "https://api-inference.modelscope.cn/v1", model: "qwen/qwen-max" },
-    openrouter: { base_url: "https://openrouter.ai/api/v1", model: "google/gemini-flash-1.5" },
-    nvidia: { base_url: "https://integrate.api.nvidia.com/v1", model: "nvidia/llama-3.1-nemotron-70b-instruct" },
     custom: { base_url: "", model: "", api_url: "" }
 };
 
@@ -558,56 +552,6 @@ const platformModels = {
     volcengine: ["doubao-1-5-pro-32k", "doubao-1-5-pro", "doubao-1-5-lite", "doubao-1-5-pro-256k"],
     tencent: ["hunyuan-pro", "hunyuan-standard", "hunyuan-lite", "hunyuan-turbo"],
     modelscope: ["qwen/qwen-max", "qwen/qwen-plus", "qwen/qwen-turbo", "qwen/qwen-long"],
-    openrouter: [
-        "google/gemini-flash-1.5",
-        "google/gemini-2.0-flash-exp:free",
-        "google/gemini-2.0-flash-thinking-exp:free",
-        "google/learnlm-1.5-pro-experimental:free",
-        "google/gemini-flash-1.5-8b",
-        "meta-llama/llama-3.2-1b-instruct:free",
-        "meta-llama/llama-3.2-3b-instruct:free",
-        "meta-llama/llama-3.1-8b-instruct:free",
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "mistralai/mistral-7b-instruct:free",
-        "mistralai/mistral-nemo:free",
-        "deepseek/deepseek-chat:free",
-        "deepseek/deepseek-r1:free",
-        "huggingfaceh4/zephyr-7b-beta:free",
-        "microsoft/phi-3-mini-128k-instruct:free",
-        "microsoft/phi-3-medium-128k-instruct:free",
-        "qwen/qwen-2.5-72b-instruct:free",
-        "qwen/qwen-2.5-vl-72b-instruct:free",
-        "nvidia/llama-3.1-nemotron-70b-instruct:free",
-        "sophosympatheia/rogue-rose-103b-v0.2:free",
-        "open-r1/olympiccoder-7b:free",
-        "open-r1/olympiccoder-32b:free",
-        "cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
-        "cognitivecomputations/dolphin3.0-mistral-24b:free",
-        "moonshotai/moonlight-16b-a3b-instruct:free"
-    ],
-    nvidia: [
-        "nvidia/llama-3.1-nemotron-70b-instruct",
-        "nvidia/llama-3.1-nemotron-51b-instruct",
-        "nvidia/llama-3.3-nemotron-super-49b-v1",
-        "nvidia/llama-3.1-nemotron-ultra-253b-v1",
-        "meta/llama-3.1-405b-instruct",
-        "meta/llama-3.3-70b-instruct",
-        "meta/llama-3.1-70b-instruct",
-        "meta/llama-3.1-8b-instruct",
-        "mistralai/mistral-large-2-instruct",
-        "mistralai/mixtral-8x22b-instruct-v0.1",
-        "mistralai/mistral-7b-instruct-v0.3",
-        "google/gemma-2-27b-it",
-        "google/gemma-2-9b-it",
-        "google/codegemma-7b",
-        "microsoft/phi-4",
-        "microsoft/phi-3.5-mini",
-        "microsoft/phi-3-medium",
-        "qwen/qwen2.5-72b-instruct",
-        "qwen/qwen2.5-7b-instruct",
-        "qwen/qwen2.5-coder-32b-instruct",
-        "deepseek-ai/deepseek-r1"
-    ],
     custom: []
 };
 
@@ -624,8 +568,6 @@ function getPlatformUrl(platform) {
         volcengine: { website: "https://volcengine.com", docs: "https://www.volcengine.com/docs" },
         tencent: { website: "https://cloud.tencent.com", docs: "https://cloud.tencent.com/document/product" },
         modelscope: { website: "https://modelscope.cn", docs: "https://modelscope.cn/docs" },
-        openrouter: { website: "https://openrouter.ai", docs: "https://openrouter.ai/docs" },
-        nvidia: { website: "https://www.nvidia.com/en-us/ai/", docs: "https://docs.nvidia.com/nim/" },
         custom: { website: "", docs: "" }
     };
     return urls[platform] || { website: "", docs: "" };
@@ -645,8 +587,6 @@ function getPlatformDescription(platform) {
             volcengine: "火山引擎是字节跳动旗下的云服务平台，提供豆包（Doubao）系列大模型 API 服务。豆包 1.5 Pro 在中文对话、内容创作、知识问答等场景表现出色，依托字节跳动强大的基础设施，API 稳定快速。",
             tencent: "腾讯云混元大模型是腾讯自研的万亿参数通用大语言模型，在中文场景下表现优异。混元 Pro 版本在内容创作、知识推理、数学计算等方面能力突出，与腾讯云服务深度整合，企业级稳定性保障。",
             modelscope: "魔搭社区 ModelScope 是阿里云旗下的 AI 模型社区，提供丰富的开源模型 API 服务。支持 Qwen、Llama、ChatGLM 等国内外主流模型，方便开发者快速体验和集成各种开源大模型能力。",
-            openrouter: "OpenRouter 是一个统一的 AI 模型 API 网关，提供对 200+ 种大模型的访问。支持 OpenAI、Anthropic、Google、Meta 等厂商的模型，包括大量免费模型。一个 API Key 即可调用多种模型，灵活方便。",
-            nvidia: "NVIDIA NIM 提供高性能的生成式 AI 模型推理服务，支持 Llama、Mistral、Qwen、DeepSeek 等主流开源模型。基于 NVIDIA GPU 加速，推理速度快、延迟低。新用户注册即可获得 1000 次免费调用额度。",
             custom: "自定义 API 配置支持任意兼容 OpenAI 格式的 API 端点。可配置第三方 API 服务或私有化部署的模型，只需填写 API 地址、密钥和模型名称即可使用，满足个性化需求。"
         },
         en: {
@@ -661,8 +601,6 @@ function getPlatformDescription(platform) {
             volcengine: "VolcEngine is ByteDance's cloud service platform offering Doubao series LLM APIs. Doubao 1.5 Pro excels in Chinese dialogue, content creation, and Q&A, backed by ByteDance's robust infrastructure for stable, fast APIs.",
             tencent: "Tencent Cloud's Hunyuan is a trillion-parameter general LLM self-developed by Tencent, excelling in Chinese scenarios. Hunyuan Pro features strong content creation, knowledge reasoning, and math capabilities, with enterprise-grade stability.",
             modelscope: "ModelScope is Alibaba Cloud's AI model community offering rich open-source model APIs. Supports Qwen, Llama, ChatGLM and other mainstream models, enabling developers to quickly experience and integrate open-source LLM capabilities.",
-            openrouter: "OpenRouter is a unified AI model API gateway providing access to 200+ models. Supports models from OpenAI, Anthropic, Google, Meta and more, including many free models. One API Key accesses multiple models flexibly.",
-            nvidia: "NVIDIA NIM provides high-performance generative AI model inference services, supporting Llama, Mistral, Qwen, DeepSeek and other mainstream open-source models. Powered by NVIDIA GPU acceleration for fast inference and low latency. New users get 1000 free API calls upon registration.",
             custom: "Custom API configuration supports any OpenAI-compatible API endpoint. Configure third-party API services or privately deployed models by filling in API address, key, and model name to meet personalized needs."
         }
     };
@@ -693,7 +631,6 @@ async function openSettings() {
                 volcengine: { name: "VolcEngine", enabled: true, config: { base_url: "", model: "" } },
                 tencent: { name: "Tencent", enabled: true, config: { base_url: "", model: "" } },
                 modelscope: { name: "ModelScope", enabled: true, config: { base_url: "", model: "" } },
-                nvidia: { name: "NVIDIA", enabled: true, config: { base_url: "", model: "" } },
                 custom: { name: "User-defined", enabled: true, config: { base_url: "", model: "", api_url: "" } }
             }
         };
@@ -719,8 +656,6 @@ async function openSettings() {
         { key: "volcengine", name: "VolcEngine" },
         { key: "tencent", name: "Tencent" },
         { key: "modelscope", name: "ModelScope" },
-        { key: "openrouter", name: "OpenRouter" },
-        { key: "nvidia", name: "NVIDIA" },
         { key: "custom", name: "User-defined" }
     ];
     

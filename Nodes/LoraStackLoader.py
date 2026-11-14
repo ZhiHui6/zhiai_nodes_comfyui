@@ -37,6 +37,11 @@ def _is_enabled(row):
     return bool(value)
 
 
+def _name_key(name):
+    """Canonical row identity: "a\\b" and "a/b" resolve to the same LoRA file."""
+    return name.strip().replace("\\", "/")
+
+
 def _row_names(value):
     """Names that will actually be applied.
 
@@ -66,8 +71,9 @@ def _entries(value):
         strength = _strength(row.get("strength", 1.0))
         if strength == 0:
             continue
-        if name in seen:
-            previous = entries[seen[name]]
+        key = _name_key(name)
+        if key in seen:
+            previous = entries[seen[key]]
             logger.warning(
                 "LoRA Stack Loader: duplicate row %r (strength %s -> %s); "
                 "keeping the last occurrence so the LoRA is applied once.",
@@ -75,26 +81,25 @@ def _entries(value):
                 previous[1],
                 strength,
             )
-            entries[seen[name]] = (name, strength)
+            entries[seen[key]] = (name, strength)
             continue
-        seen[name] = len(entries)
+        seen[key] = len(entries)
         entries.append((name, strength))
     return entries
 
 
 def _trigger_words(value):
-    words = []
+    words = {}
     for row in _coerce_rows(value):
         if not isinstance(row, dict):
             continue
-        if not _is_enabled(row):
+        name = str(row.get("name") or "").strip()
+        if not name or not _is_enabled(row):
             continue
         if _strength(row.get("strength", 1.0)) == 0:
             continue
-        text = str(row.get("trigger_words") or "").strip()
-        if text:
-            words.append(text)
-    return ", ".join(words)
+        words[_name_key(name)] = str(row.get("trigger_words") or "").strip()
+    return ", ".join(text for text in words.values() if text)
 
 
 class LoraStackLoader:
@@ -124,13 +129,13 @@ class LoraStackLoader:
             return str(exc)
         try:
             available = {
-                name.replace("\\", "/")
+                _name_key(name)
                 for name in folder_paths.get_filename_list("loras")
             }
         except Exception:
             return True
         for name in names:
-            if name.replace("\\", "/") not in available:
+            if _name_key(name) not in available:
                 return f"LoRA Stack Loader: LoRA not found: {name}"
         return True
 

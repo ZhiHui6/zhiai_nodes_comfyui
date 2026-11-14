@@ -968,7 +968,7 @@ Besides nodes, the pack ships a topbar hardware monitor extension. Once installe
 </table>
 
 <b>Usage Notes</b>:
-- <b>Settings</b>: ComfyUI Settings → <b>ZhiAI</b> → <b>Topbar Hardware Monitor</b>, with separate toggles for showing the monitor and showing RAM/VRAM as a percentage. Changes apply immediately.
+- <b>Settings</b>: ComfyUI Settings → <b>ZhiAI</b> → <b>Topbar Hardware Monitor</b>, with separate toggles for showing the monitor, showing RAM/VRAM as a percentage, and a compact display (hides the header and GPU temperature, showing a 2×2 layout). Changes apply immediately.
 - <b>Refresh rate</b>: updated once per second; polling pauses while the window is minimized or the page is hidden.
 - <b>Zero idle overhead</b>: the backend samples only while requests are coming in and stops its sampling thread after 60 seconds without any request.
 - <b>GPU data source</b>: read through NVML (`nvidia-ml-py` plus an NVIDIA driver). If NVML is unavailable, the three GPU metrics hide automatically and only CPU and RAM stay visible.
@@ -1010,7 +1010,7 @@ After installation every node sits under the **Zhi.AI** top-level category of th
 ### 🔑 First-run Configuration
 
 - **Network access**: translation, AI expansion and online image understanding call remote endpoints; the text, image and latent tools run entirely locally.
-- **LLM platform keys**: open the ComfyUI **Settings** panel → **ZhiAI** → click "📝 API Settings" to fill in API Key, Base URL and model name for OpenAI, Google, ZhipuAI, DeepSeek, SiliconFlow, MoonshotAI, MiniMax, Alibaba, VolcEngine, Tencent, ModelScope, NVIDIA and any custom endpoint, with a connection test included. The Tag Selector's AI expansion reads this configuration directly (`platform` set to auto picks whichever profile is available), and Image Understanding Online shares the same storage for its endpoint profiles.
+- **LLM platform keys**: open the ComfyUI **Settings** panel → **ZhiAI** → click "📝 API Settings" to fill in API Key, Base URL and model name for OpenAI, Google, ZhipuAI, DeepSeek, SiliconFlow, MoonshotAI, MiniMax, Alibaba, VolcEngine, Tencent, ModelScope and any custom endpoint, with a connection test included. The Tag Selector's AI expansion reads this configuration directly (`platform` set to auto picks whichever profile is available), and Image Understanding Online shares the same storage for its endpoint profiles.
 - **Translation keys**: click the gear button in the Multi-Platform Translation node's title bar (left of the help button) to enter the credentials of Baidu, Alibaba Cloud, Youdao, Zhipu AI and Google separately.
 - **LM Studio**: run LM Studio locally with its server enabled (default port 1234); see the Prerequisites of that node above.
 

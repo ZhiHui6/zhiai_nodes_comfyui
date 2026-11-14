@@ -85,6 +85,9 @@ const i18n = {
         presetRenamed: "已重命名",
         presetConfirmLoad: "将替换当前 {count} 条目，确定继续？",
         presetConfirmDelete: "删除配方「{name}」？",
+        presetConfirmTitle: "请确认操作",
+        presetConfirmOk: "确定",
+        presetConfirmCancel: "取消",
         presetNameRequired: "请输入配方名称",
         presetDuplicate: "已存在同名配方",
         presetSaveEmpty: "当前没有可保存的条目",
@@ -150,6 +153,9 @@ const i18n = {
         presetRenamed: "Renamed",
         presetConfirmLoad: "This will replace the current {count} entries. Continue?",
         presetConfirmDelete: "Delete recipe \"{name}\"?",
+        presetConfirmTitle: "Confirm action",
+        presetConfirmOk: "Confirm",
+        presetConfirmCancel: "Cancel",
         presetNameRequired: "Please enter a recipe name",
         presetDuplicate: "A recipe with this name already exists",
         presetSaveEmpty: "No entries to save",
@@ -1234,9 +1240,6 @@ const STYLE_TEXT = `
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 1;
     border: none;
     background: #3D4557;
     color: #C9D3E0;
@@ -1405,12 +1408,12 @@ const STYLE_TEXT = `
     border-color: transparent;
 }
 .zll-preset__op--danger {
-    background: #FF0000;
+    background: #DC2626;
     color: #FFFFFF;
 }
 .zll-preset__op--danger:hover {
     color: #FFFFFF;
-    background: #FF3333;
+    background: #EF4444;
     border-color: transparent;
 }
 .zll-preset__rename {
@@ -1504,6 +1507,77 @@ const STYLE_TEXT = `
         opacity: 1;
         transform: none;
     }
+}
+.zll-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10070;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(2, 6, 23, 0.6);
+}
+.zll-confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 340px;
+    max-width: calc(100vw - 24px);
+    padding: 18px;
+    border: 1px solid #2C5080;
+    border-radius: 10px;
+    background: rgba(24, 29, 38, 0.98);
+    box-shadow: 0 18px 48px rgba(2, 6, 23, 0.6);
+    color: #DDE9F5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.zll-confirm__title {
+    color: #DDE9F5;
+    font-size: 15px;
+    font-weight: 600;
+}
+.zll-confirm__text {
+    color: #B9C7D8;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+.zll-confirm__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 6px;
+}
+.zll-confirm__btn {
+    height: 30px;
+    padding: 0 16px;
+    border: 1px solid rgba(96, 165, 250, 0.28);
+    border-radius: 6px;
+    background: #3D4557;
+    color: #DDE9F5;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+.zll-confirm__btn:hover {
+    background: #4A5568;
+    border-color: rgba(147, 197, 253, 0.45);
+}
+.zll-confirm__btn--primary {
+    background: #4A8FD2;
+    border-color: #4A8FD2;
+    color: #FFFFFF;
+}
+.zll-confirm__btn--primary:hover {
+    background: #6BA5E2;
+    border-color: #6BA5E2;
+}
+.zll-confirm__btn:focus-visible {
+    outline: 2px solid #93C5FD;
+    outline-offset: 1px;
 }
 .zll-settings-dialog {
     position: fixed;
@@ -2335,7 +2409,7 @@ function loadRows(node) {
     // LoRA), matching the Python loader's dedupe.
     node._zllRows = [];
     loadedRows.forEach((row) => {
-        const existing = node._zllRows.find((item) => item.name === row.name);
+        const existing = node._zllRows.find((item) => loraKey(item.name) === loraKey(row.name));
         if (existing) node._zllRows[node._zllRows.indexOf(existing)] = row;
         else node._zllRows.push(row);
     });
@@ -3341,6 +3415,10 @@ function loraLabel(raw) {
     return base.replace(/\.(safetensors|sft|ckpt|pt|pth|bin|onnx)$/i, "");
 }
 
+function loraKey(raw) {
+    return String(raw ?? "").trim().replace(/\\/g, "/");
+}
+
 function normalizeModel(raw) {
     if (typeof raw === "string") return { name: raw, pathIndex: null, modified: null };
     if (!raw || typeof raw !== "object") return { name: "", pathIndex: null, modified: null };
@@ -3573,8 +3651,8 @@ function applyPickerSelection() {
             closePicker();
             return;
         }
-        if (row.name !== selected.name) {
-            const duplicate = node._zllRows.find((item) => item !== row && item.name === selected.name);
+        if (loraKey(row.name) !== loraKey(selected.name)) {
+            const duplicate = node._zllRows.find((item) => item !== row && loraKey(item.name) === loraKey(selected.name));
             if (duplicate) {
                 node._zllRows.splice(node._zllRows.indexOf(duplicate), 1);
             }
@@ -3584,7 +3662,7 @@ function applyPickerSelection() {
         node._zllScrollUid = row.uid;
     } else {
         // 新增模式：选中后才创建条目；同一 LoRA 只保留一行，避免重复叠加
-        const existing = node._zllRows.find((item) => String(item.name) === String(selected.name));
+        const existing = node._zllRows.find((item) => loraKey(item.name) === loraKey(selected.name));
         if (existing) {
             node._zllScrollUid = existing.uid;
         } else {
@@ -3637,7 +3715,7 @@ function applyPickerBatch() {
     let skipped = [...checked].filter((name) => !known.has(name)).length;
     let firstUid = null;
     names.forEach((name) => {
-        const existing = node._zllRows.find((item) => String(item.name) === String(name));
+        const existing = node._zllRows.find((item) => loraKey(item.name) === loraKey(name));
         if (existing) {
             // 重复加载：保留原条目，不新增
             firstUid = firstUid ?? existing.uid;
@@ -3961,7 +4039,7 @@ function applyPresetRows(node, rows, mode) {
                 trigger_words: typeof raw?.trigger_words === "string" ? raw.trigger_words : "",
                 expanded: false,
             });
-            const existing = next.find((item) => item.name === entry.name);
+            const existing = next.find((item) => loraKey(item.name) === loraKey(entry.name));
             if (existing) next[next.indexOf(existing)] = entry;
             else next.push(entry);
         });
@@ -3969,7 +4047,7 @@ function applyPresetRows(node, rows, mode) {
         const current = node._zllRows || [];
         node._zllRows = [
             ...current,
-            ...next.filter((entry) => !current.some((item) => item.name === entry.name)),
+            ...next.filter((entry) => !current.some((item) => loraKey(item.name) === loraKey(entry.name))),
         ];
     } else {
         node._zllRows = next;
@@ -4083,10 +4161,16 @@ function renderPresetList() {
 
         loadBtn.addEventListener("click", () => {
             const current = (state.node._zllRows || []).length;
-            if (current > 0 && !window.confirm($t("presetConfirmLoad").replace("{count}", String(current)))) return;
-            applyPresetRows(state.node, preset.rows, "replace");
-            updatePresetStats();
-            presetToast("ok", $t("presetLoaded").replace("{name}", preset.name));
+            const loadRows = () => {
+                applyPresetRows(state.node, preset.rows, "replace");
+                updatePresetStats();
+                presetToast("ok", $t("presetLoaded").replace("{name}", preset.name));
+            };
+            if (current > 0) {
+                showPresetConfirm($t("presetConfirmLoad").replace("{count}", String(current)), loadRows);
+                return;
+            }
+            loadRows();
         });
         appendBtn.addEventListener("click", () => {
             applyPresetRows(state.node, preset.rows, "append");
@@ -4124,15 +4208,16 @@ function renderPresetList() {
             input.focus();
             input.select();
         });
-        deleteBtn.addEventListener("click", async () => {
-            if (!window.confirm($t("presetConfirmDelete").replace("{name}", preset.name))) return;
-            try {
-                state.presets = await removePreset(preset.id);
-                renderPresetList();
-                presetToast("ok", $t("presetDeleted").replace("{name}", preset.name));
-            } catch (error) {
-                presetToast("error", $t("presetError"));
-            }
+        deleteBtn.addEventListener("click", () => {
+            showPresetConfirm($t("presetConfirmDelete").replace("{name}", preset.name), async () => {
+                try {
+                    state.presets = await removePreset(preset.id);
+                    renderPresetList();
+                    presetToast("ok", $t("presetDeleted").replace("{name}", preset.name));
+                } catch (error) {
+                    presetToast("error", $t("presetError"));
+                }
+            });
         });
     });
 }
@@ -4167,6 +4252,62 @@ function closePresetPanel() {
     state.overlay.remove();
 }
 
+let presetConfirmState = null;
+
+function closePresetConfirm(result) {
+    const state = presetConfirmState;
+    if (!state) return;
+    presetConfirmState = null;
+    window.removeEventListener("keydown", state.keyHandler, true);
+    state.overlay.remove();
+    if (result) state.onConfirm();
+}
+
+function showPresetConfirm(message, onConfirm) {
+    closePresetConfirm(false);
+    const overlay = document.createElement("div");
+    overlay.className = "zll-confirm-overlay";
+    const box = document.createElement("div");
+    box.className = "zll-confirm";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    const title = document.createElement("div");
+    title.className = "zll-confirm__title";
+    title.textContent = $t("presetConfirmTitle");
+    const text = document.createElement("div");
+    text.className = "zll-confirm__text";
+    text.textContent = message;
+    const actions = document.createElement("div");
+    actions.className = "zll-confirm__actions";
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.className = "zll-confirm__btn zll-confirm__btn--primary";
+    confirmBtn.textContent = $t("presetConfirmOk");
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "zll-confirm__btn";
+    cancelBtn.textContent = $t("presetConfirmCancel");
+    actions.append(confirmBtn, cancelBtn);
+    box.append(title, text, actions);
+    overlay.append(box);
+    document.body.append(overlay);
+
+    const keyHandler = (event) => {
+        if (event.key !== "Escape" && event.key !== "Enter") return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        closePresetConfirm(event.key === "Enter");
+    };
+    window.addEventListener("keydown", keyHandler, true);
+    confirmBtn.addEventListener("click", () => closePresetConfirm(true));
+    cancelBtn.addEventListener("click", () => closePresetConfirm(false));
+    overlay.addEventListener("pointerdown", (event) => {
+        if (event.target === overlay) closePresetConfirm(false);
+    });
+    presetConfirmState = { overlay, keyHandler, onConfirm };
+    confirmBtn.focus();
+}
+
 function openPresetPanel(node, anchor) {
     closePresetPanel();
     closePickerFor(node);
@@ -4185,7 +4326,7 @@ function openPresetPanel(node, anchor) {
     const closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "zll-icon zll-preset__close";
-    closeBtn.textContent = "×";
+    closeBtn.innerHTML = CLOSE_ICON;
     closeBtn.addEventListener("click", closePresetPanel);
     head.appendChild(title);
     head.appendChild(closeBtn);
@@ -4235,10 +4376,10 @@ function openPresetPanel(node, anchor) {
         presets: [],
         els: { list, toast, toastText, nameInput, saveBtn, statRecipes, statRows },
         keyHandler: (event) => {
-            if (event.key === "Escape") {
-                event.stopPropagation();
-                closePresetPanel();
-            }
+            if (event.key !== "Escape") return;
+            if (presetConfirmState) return;
+            event.stopPropagation();
+            closePresetPanel();
         },
         resizeHandler: () => positionPresetPanel(anchor),
     };

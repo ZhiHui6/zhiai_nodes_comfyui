@@ -615,9 +615,7 @@ class TagSelector:
                 "kimi": _openai_compatible,
                 "minimax": _openai_compatible,
                 "qwen": _openai_compatible,
-                "openrouter": _openai_compatible,
                 "tencent": _openai_compatible,
-                "nvidia": _openai_compatible,
                 "custom": _openai_compatible,
             }
 
@@ -654,9 +652,7 @@ class TagSelector:
         "kimi": {"default_model": "moonshot-v1-8k", "default_base_url": "https://api.moonshot.cn/v1"},
         "minimax": {"default_model": "MiniMax-M2.5", "default_base_url": "https://api.minimaxi.com/v1"},
         "qwen": {"default_model": "qwen-turbo", "default_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1"},
-        "openrouter": {"default_model": "openai/gpt-4o-mini", "default_base_url": "https://openrouter.ai/api/v1", "extra_headers": {"HTTP-Referer": "https://github.com", "X-Title": "ComfyUI ZhiAI Nodes"}},
         "tencent": {"default_model": "hunyuan-lite", "default_base_url": "https://hunyuan.tencentcloudapi.com"},
-        "nvidia": {"default_model": "nvidia/llama-3.1-nemotron-70b-instruct", "default_base_url": "https://integrate.api.nvidia.com/v1"},
         "custom": {"default_model": "gpt-4-turbo", "default_base_url": ""},
     }
 

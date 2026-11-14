@@ -108,24 +108,6 @@
             },
             "api_url": "https://api-inference.modelscope.cn/v1/chat/completions"
         },
-        "openrouter": {
-            "name": "OpenRouter",
-            "enabled": true,
-            "config": {
-                "base_url": "https://openrouter.ai/api/v1",
-                "model": "openai/gpt-4o-mini"
-            },
-            "api_url": "https://openrouter.ai/api/v1/chat/completions"
-        },
-        "nvidia": {
-            "name": "NVIDIA",
-            "enabled": true,
-            "config": {
-                "base_url": "https://integrate.api.nvidia.com/v1",
-                "model": "nvidia/llama-3.1-nemotron-70b-instruct"
-            },
-            "api_url": "https://integrate.api.nvidia.com/v1/chat/completions"
-        },
         "custom": {
             "name": "User-defined",
             "enabled": true,
