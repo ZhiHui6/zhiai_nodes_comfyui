@@ -375,19 +375,6 @@ Professional photography prompt generator with 32 customizable dimensions (camer
 - <b>Custom Mode</b>: Supports completely custom width and height settings
 - <b>Aspect Ratio Lock</b>: Provides aspect ratio locking function, automatically adjusting one dimension when modifying the other
 - <b>Size Swap</b>: One-click swap width and height values for easy portrait/landscape orientation adjustment
-
-<br>
-<div align="left">
-<a href="images/Image Aspect Ratio1.jpg" target="_blank">
-<img src="images/Image Aspect Ratio1.jpg" alt="Image Aspect Ratio" width="80%"/>
-</a>
-</div>
-<br>
-<div align="left">
-<a href="images/Image Aspect Ratio2.jpg" target="_blank">
-<img src="images/Image Aspect Ratio2.jpg" alt="Image Aspect Ratio 2" width="80%"/>
-</a>
-</div>
 </td>
 </tr>
 <tr>

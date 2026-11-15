@@ -12,5 +12,10 @@ Nodes/ImageUnderstandingOnline/api_config.json
 Nodes/ImageUnderstandingOnline/batch_config.json
 .DS_Store
 Thumbs.db
-.trae/
 docs/
+.trae/
+.workbuddy/
+.qoder/
+.qoder-cn/
+.deepseek/
+.deepseek-harness/

@@ -63,7 +63,7 @@ def build_node_dict(language):
         if not isinstance(entry, dict):
             continue
         record = nodes.setdefault(class_name, {})
-        for key in ("outputs", "options"):
+        for key in ("outputs", "options", "placeholders"):
             value = entry.get(key)
             if isinstance(value, dict) and value:
                 record[key] = value

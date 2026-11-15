@@ -133,12 +133,46 @@ function zhOption(className, widgetName, value) {
 	return textOf(nodeDict(className)?.options?.[widgetName]?.[text]) ?? textOf(dicts.values[text]);
 }
 
+function zhPlaceholder(className, name) {
+	const entry = nodeDict(className)?.placeholders;
+	if (!entry || typeof entry !== "object") return null;
+	return textOf(entry[name]);
+}
+
+function applyWidgetPlaceholder(className, widget) {
+	const text = zhPlaceholder(className, widget?.name);
+	if (!text) return false;
+	if (widget._zhiaiPlaceholderOriginal === undefined) {
+		widget._zhiaiPlaceholderOriginal =
+			typeof widget.options?.placeholder === "string" ? widget.options.placeholder : "";
+	}
+	const next = getLocale() === "zh" ? text : widget._zhiaiPlaceholderOriginal;
+	let changed = false;
+	if (widget.options && widget.options.placeholder !== next) {
+		widget.options.placeholder = next;
+		changed = true;
+	}
+	const el = widget.inputEl;
+	if (el && el.placeholder !== next) {
+		el.placeholder = next;
+		changed = true;
+	}
+	return changed;
+}
+
 function canonicalOptionValue(className, widgetName, value) {
-	const entry = nodeDict(className)?.options?.[widgetName];
-	if (!entry) return null;
 	const text = String(value ?? "");
-	for (const [raw, zh] of Object.entries(entry)) {
-		if (zh === text) return raw;
+	const entry = nodeDict(className)?.options?.[widgetName];
+	if (entry) {
+		for (const [raw, zh] of Object.entries(entry)) {
+			if (zh === text) return raw;
+		}
+	}
+	const global = dicts.values;
+	if (global && typeof global === "object") {
+		for (const [raw, zh] of Object.entries(global)) {
+			if (zh === text) return raw;
+		}
 	}
 	return null;
 }
@@ -373,6 +407,7 @@ export function applyNode(node) {
 	for (const widget of node.widgets ?? []) {
 		if (typeof widget?.name !== "string") continue;
 		changed = applyWidgetLabel(widget, zhLabel(className, widget.name)) || changed;
+		changed = applyWidgetPlaceholder(className, widget) || changed;
 		if (isComboWidget(widget)) {
 			changed = applyComboValues(className, widget) || changed;
 			changed = applyOptionLabel(className, widget) || changed;

@@ -1,4 +1,4 @@
-import { getState, setState, ADULT_SESSION_TIMEOUT, ADULT_MAX_FAILED_ATTEMPTS, ADULT_LOCKOUT_DURATION, ADULT_STORAGE_SALT } from '../core/state.js';
+import { getState, setState, ADULT_MAX_FAILED_ATTEMPTS, ADULT_LOCKOUT_DURATION, ADULT_STORAGE_SALT } from '../core/state.js';
 import { showToast } from '../utils/dom.js';
 import { getLocale } from '../utils/helpers.js';
 
@@ -39,19 +39,6 @@ function loadAdultContentSettings() {
         const enabled = parsed.enabled || false;
         const unlocked = parsed.unlocked || false;
         const timestamp = parsed.timestamp || 0;
-
-        if (enabled && timestamp > 0) {
-            const elapsed = Date.now() - timestamp;
-            if (elapsed > ADULT_SESSION_TIMEOUT) {
-                setState({
-                    adultContentEnabled: false,
-                    adultContentUnlocked: false,
-                    adultUnlockTimestamp: 0
-                });
-                saveAdultContentSettings();
-                return { enabled: false, unlocked: false };
-            }
-        }
 
         setState({
             adultContentEnabled: enabled,

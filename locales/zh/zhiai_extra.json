@@ -43,6 +43,9 @@
     "TagSelector": {
         "outputs": {
             "tags": "标签"
+        },
+        "placeholders": {
+            "tag_edit": "选择的标签将显示在这里。"
         }
     },
     "ImageAspectRatio": {
@@ -81,6 +84,14 @@
     "PromptPresetOneChoice": {
         "outputs": {
             "prompt": "提示词"
+        },
+        "placeholders": {
+            "prompt1_comment": "标签 1",
+            "prompt2_comment": "标签 2",
+            "prompt3_comment": "标签 3",
+            "prompt4_comment": "标签 4",
+            "prompt5_comment": "标签 5",
+            "prompt6_comment": "标签 6"
         }
     },
     "SystemPromptLoader": {
@@ -141,11 +152,17 @@
     "SunoSongStylePromptGenerator": {
         "outputs": {
             "prompt": "提示词"
+        },
+        "placeholders": {
+            "preference": "描述你的偏好：\n描述你的想法，例如：一首关于东京雨天的歌。"
         }
     },
     "SunoLyricsGenerator": {
         "outputs": {
             "lyrics": "歌词"
+        },
+        "placeholders": {
+            "preference": "描述你的歌词灵感：\n例如：一首关于纯爱女神的歌。"
         }
     },
     "LLMExtraOptions": {
@@ -185,6 +202,10 @@
                 "English": "英文",
                 "Chinese&English": "中英"
             }
+        },
+        "placeholders": {
+            "user_prompt": "输入用户提示词…",
+            "system_prompt": "输入系统提示词…"
         }
     },
     "BatchLoadingOfImages": {

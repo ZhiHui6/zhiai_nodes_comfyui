@@ -388,19 +388,6 @@
 - <b>自定义模式</b>：支持完全自定义的宽度和高度设置
 - <b>宽高比锁定</b>：提供宽高比锁定功能，修改一个维度时自动调整另一个维度
 - <b>尺寸互换</b>：一键互换宽高数值，方便调整横竖屏方向
-
-<br>
-<div align="left">
-<a href="images/Image Aspect Ratio1.jpg" target="_blank">
-<img src="images/Image Aspect Ratio1.jpg" alt="Image Aspect Ratio" width="80%"/>
-</a>
-</div>
-<br>
-<div align="left">
-<a href="images/Image Aspect Ratio2.jpg" target="_blank">
-<img src="images/Image Aspect Ratio2.jpg" alt="Image Aspect Ratio 2" width="80%"/>
-</a>
-</div>
 </td>
 </tr>
 <tr>

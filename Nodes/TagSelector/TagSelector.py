@@ -167,7 +167,7 @@ class TagSelector:
                     {
                         "multiline": True,
                         "default": "",
-                        "placeholder": "选择的标签将显示在这里。\nSelected tags will be displayed here.",
+                        "placeholder": "Selected tags will be displayed here.",
                     },
                 ),
                 "random_logic": (
@@ -198,7 +198,7 @@ class TagSelector:
                 "max_tokens": (
                     "INT",
                     {
-                        "default": 2048,
+                        "default": 8192,
                         "min": 256,
                         "max": 8192,
                         "step": 256,
@@ -224,7 +224,7 @@ class TagSelector:
         expand_mode,
         output_language,
         platform="auto",
-        max_tokens=2048,
+        max_tokens=8192,
         unique_id=None,
         extra_pnginfo=None,
     ):
@@ -589,7 +589,7 @@ class TagSelector:
         expand_mode: str,
         output_language: str,
         selected_platform: str = "auto",
-        max_tokens: int = 2048,
+        max_tokens: int = 8192,
     ) -> str:
         try:
             is_chinese = output_language == "Chinese"

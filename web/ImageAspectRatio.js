@@ -159,6 +159,15 @@ function installSwapStyle() {
     color: #eff6ff;
 }
 .zhiai-aspect-swap:focus { outline: none; }
+.zhiai-aspect-swap.ignored {
+    opacity: 0.35;
+    filter: grayscale(0.6);
+}
+.zhiai-aspect-swap.ignored:hover {
+    border-color: rgba(148, 163, 184, 0.35);
+    background: linear-gradient(160deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+    color: #94a3b8;
+}
 .zhiai-aspect-swap svg { display: block; width: 15px; height: 15px; flex: none; pointer-events: none; }
 .zhiai-aspect-swap span { pointer-events: none; }
 `;
@@ -198,6 +207,12 @@ function positionSwapButton(node, ctx) {
         if (btn.style.display !== "none") btn.style.display = "none";
         return;
     }
+    const NEVER = LiteGraph?.NEVER ?? 2;
+    const BYPASS = LiteGraph?.BYPASS ?? 4;
+    const ignored = node.mode === NEVER || node.mode === BYPASS;
+    if (btn.classList.contains("ignored") !== ignored) {
+        btn.classList.toggle("ignored", ignored);
+    }
     const matrix = new DOMMatrix()
         .scaleSelf(rect.width / canvasEl.width, rect.height / canvasEl.height)
         .multiplySelf(ctx.getTransform());
@@ -222,6 +237,67 @@ function destroySwapButton(node) {
     if (!btn) return;
     btn.remove();
     node._zhiaiSwapBtn = null;
+}
+
+function syncWidgetInputs(node) {
+    const widgets = node.widgets || [];
+    for (const input of node.inputs || []) {
+        if (!input || input.widget) continue;
+        const widget = widgets.find(w => w && w.name === input.name);
+        if (!widget) continue;
+        input.widget = { name: widget.name };
+    }
+}
+
+const ASPECT_WIDGET_KINDS = {
+    preset_mode: "combo",
+    aspect_category: "combo",
+    aspect_size: "combo",
+    custom_width: "int",
+    custom_height: "int",
+    aspect_lock: "bool",
+    batch_size: "int",
+};
+
+const ASPECT_SAVED_LAYOUTS = [
+    ["preset_mode", "aspect_category", "aspect_size", "custom_width", "custom_height", "aspect_lock", "batch_size"],
+    ["preset_mode", "aspect_category", "aspect_size", "batch_size", "custom_width", "custom_height", "aspect_lock"],
+    ["preset_mode", "custom_width", "custom_height", "aspect_lock", "batch_size", "aspect_category", "aspect_size"],
+];
+
+function aspectValueMatchesKind(kind, value) {
+    if (kind === "combo") return typeof value === "string";
+    if (kind === "bool") return typeof value === "boolean";
+    if (kind === "int") {
+        if (typeof value === "number") return Number.isFinite(value);
+        return typeof value === "string" && value.trim() !== "" && !isNaN(Number(value));
+    }
+    return true;
+}
+
+function restoreAspectWidgetsByName(node, values) {
+    if (!Array.isArray(values) || values.length === 0) return;
+    let bestOrder = null;
+    let bestScore = -1;
+    for (const order of ASPECT_SAVED_LAYOUTS) {
+        const count = Math.min(order.length, values.length);
+        let score = 0;
+        for (let i = 0; i < count; i++) {
+            const kind = ASPECT_WIDGET_KINDS[order[i]];
+            if (kind && aspectValueMatchesKind(kind, values[i])) score++;
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            bestOrder = order;
+        }
+    }
+    if (!bestOrder) return;
+    const count = Math.min(bestOrder.length, values.length);
+    if (bestScore < count - 1) return;
+    for (let i = 0; i < count; i++) {
+        const widget = node.widgets?.find(w => w && w.name === bestOrder[i]);
+        if (widget) widget.value = values[i];
+    }
 }
 
 app.registerExtension({
@@ -468,6 +544,7 @@ app.registerExtension({
                         widgets.push(widthWidget, heightWidget, lockWidget);
                     }
                     
+                    syncWidgetInputs(this);
                     app.graph.setDirtyCanvas(true, true);
                 };
 
@@ -525,7 +602,7 @@ app.registerExtension({
                         if (heightWidget.value === '' || heightWidget.value === null || heightWidget.value === undefined) {
                             heightWidget.value = 1328;
                         }
-                        if (batchWidget && (batchWidget.value === '' || batchWidget.value === null || batchWidget.value === undefined || batchWidget.value === 1328)) {
+                        if (batchWidget && (batchWidget.value === '' || batchWidget.value === null || batchWidget.value === undefined || batchWidget.value === 1328 || typeof batchWidget.value === 'boolean' || batchWidget.value === 0 || batchWidget.value === '0')) {
                             batchWidget.value = 1;
                         }
                         
@@ -648,6 +725,11 @@ app.registerExtension({
 
             const onConfigure = nodeType.prototype.onConfigure;
             nodeType.prototype.onConfigure = function() {
+                const info = arguments[0];
+                if (Array.isArray(info?.widgets_values) && info.widgets_values.length > 0) {
+                    restoreAspectWidgetsByName(this, info.widgets_values);
+                }
+
                 this._controlsRepositioned = false;
                 this._lastModeWasCustom = null;
                 
@@ -669,6 +751,8 @@ app.registerExtension({
                 if (onConfigure) {
                     onConfigure.apply(this, arguments);
                 }
+                
+                syncWidgetInputs(this);
             };
 
             const iconSize = 24;

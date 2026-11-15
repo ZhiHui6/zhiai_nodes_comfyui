@@ -1,5 +1,5 @@
 import { app } from "/scripts/app.js";
-import { drawNodeHelpButton, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
+import { drawNodeHelpButton, drawNodeTitleChip, NODE_TITLE_GLYPH, NODE_TITLE_ACTION_TINTS, titleTipHovered, hideTitleTip } from "./node_title_icons.js";
 import { api } from "/scripts/api.js";
 import { i18n } from "./TagSelector/i18n/index.js";
 import { tagI18n } from "./TagSelector/i18n/tags.js";
@@ -585,6 +585,238 @@ function setupButtonHoverEffect(element, normalStyles, hoverStyles) {
     });
 }
 
+function toggleTagEditClear(node) {
+    const widget = node.widgets?.find(w => w.name === "tag_edit");
+    const inputEl = widget?.inputEl;
+    if (!inputEl) return;
+    if (node._lastClearedTagEdit !== undefined) {
+        inputEl.value = node._lastClearedTagEdit;
+        widget.value = node._lastClearedTagEdit;
+        node._lastClearedTagEdit = undefined;
+        showToast($t('inputRestored'), 'success');
+    } else {
+        node._lastClearedTagEdit = inputEl.value;
+        inputEl.value = "";
+        widget.value = "";
+        showToast($t('inputCleared'), 'success');
+    }
+    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+    node.setDirtyCanvas?.(true, true);
+}
+
+const TITLE_BTN_SIZE = 24;
+const TITLE_BTN_MARGIN = 4;
+const TITLE_BTN_GAP = 4;
+const TITLE_BTN_GLYPH_SCALE = 0.75;
+const TITLE_GLYPH_LINE_WIDTH = 2 / TITLE_BTN_GLYPH_SCALE;
+
+const TITLE_BTN_TINTS = {
+    insert: {
+        top: "#7A4A1F",
+        bottom: "#6E421B",
+        topActive: "#8F5826",
+        bottomActive: "#7F4E21",
+        stroke: "#FB923C",
+        strokeActive: "#FDBA74",
+        glyph: "#FFD9B3",
+        glyphActive: "#FFEDD5",
+    },
+    clear: NODE_TITLE_ACTION_TINTS.clear,
+    restore: NODE_TITLE_ACTION_TINTS.restore,
+};
+
+const _titleBtnPaths = new Map();
+
+function titleBtnPath(kind) {
+    const cached = _titleBtnPaths.get(kind);
+    if (cached) return cached;
+    const path = new Path2D();
+    if (kind === "insert") {
+        path.addPath(new Path2D("M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"));
+        path.moveTo(7, 7);
+        path.lineTo(7.01, 7);
+    } else if (kind === "restore") {
+        path.addPath(new Path2D("M1 4 1 10 7 10M23 4 23 10 17 10M20.49 15a9 9 0 1 1-2.12-9.36L23 10"));
+    } else {
+        path.addPath(new Path2D("M18 6 6 18M6 6 18 18"));
+    }
+    _titleBtnPaths.set(kind, path);
+    return path;
+}
+
+function drawTitleBtn(ctx, kind, active) {
+    const tint = TITLE_BTN_TINTS[kind];
+    drawNodeTitleChip(ctx, active, tint);
+    ctx.save();
+    ctx.translate(16, 16);
+    ctx.scale(TITLE_BTN_GLYPH_SCALE, TITLE_BTN_GLYPH_SCALE);
+    ctx.translate(-12, -12);
+    ctx.strokeStyle = tint ? (active ? tint.glyphActive : tint.glyph) : (active ? NODE_TITLE_GLYPH.active : NODE_TITLE_GLYPH.idle);
+    ctx.lineWidth = TITLE_GLYPH_LINE_WIDTH;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke(titleBtnPath(kind));
+    ctx.restore();
+}
+
+let titleBtnSettings = loadNodeSettings();
+
+function refreshTitleBtnSettings() {
+    titleBtnSettings = loadNodeSettings();
+}
+
+function titleBtnKinds() {
+    const kinds = [];
+    if (titleBtnSettings.showInsertBtn !== false) kinds.push("insert");
+    if (titleBtnSettings.showClearBtn !== false) kinds.push("clear");
+    return kinds;
+}
+
+function titleBtnTop() {
+    return -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - TITLE_BTN_SIZE) / 2;
+}
+
+function titleBtnLeft(node, index, total) {
+    const helpLeft = node.size[0] - TITLE_BTN_SIZE - TITLE_BTN_MARGIN;
+    return helpLeft - TITLE_BTN_GAP - TITLE_BTN_SIZE - (total - 1 - index) * (TITLE_BTN_SIZE + TITLE_BTN_GAP);
+}
+
+function hitTitleBtn(node, localPos) {
+    if (!localPos || node.flags?.collapsed) return null;
+    const kinds = titleBtnKinds();
+    const top = titleBtnTop();
+    for (let i = 0; i < kinds.length; i++) {
+        const left = titleBtnLeft(node, i, kinds.length);
+        if (localPos[0] >= left && localPos[0] <= left + TITLE_BTN_SIZE
+            && localPos[1] >= top && localPos[1] <= top + TITLE_BTN_SIZE) {
+            return kinds[i];
+        }
+    }
+    return null;
+}
+
+function titleBtnTip(node, kind) {
+    if (kind === "insert") return $t('insertTagBtnTooltip');
+    return $t(node._lastClearedTagEdit !== undefined ? 'restoreInputBtnTooltip' : 'clearInputBtnTooltip');
+}
+
+function titleBtnAnchor(node, kind) {
+    const kinds = titleBtnKinds();
+    const index = kinds.indexOf(kind);
+    const canvasEl = app.canvas?.canvas;
+    const ds = app.canvas?.ds ?? app.canvas;
+    const scale = typeof ds?.scale === "number" && ds.scale ? ds.scale : 1;
+    const offset = ds?.offset ?? [0, 0];
+    const bcr = canvasEl?.getBoundingClientRect() ?? { left: 0, top: 0 };
+    const left = bcr.left + (node.pos[0] + titleBtnLeft(node, index, kinds.length) + (offset[0] ?? 0)) * scale;
+    const top = bcr.top + (node.pos[1] + titleBtnTop() + (offset[1] ?? 0)) * scale;
+    const size = TITLE_BTN_SIZE * scale;
+    const rect = { left, top, width: size, height: size, right: left + size, bottom: top + size, x: left, y: top };
+    return { getBoundingClientRect: () => rect };
+}
+
+const TAG_OPEN_BTN_HEIGHT = 21;
+const TAG_OPEN_BTN_PAD_X = 4;
+const TAG_OPEN_BTN_FONT = "12px 'Microsoft YaHei','PingFang SC','Hiragino Sans GB',sans-serif";
+const TAG_OPEN_BTN_GAP = 8;
+const TAG_OPEN_BTN_MIN_LEFT = 8;
+const TAG_OPEN_BTN_ICON = 14;
+const TAG_OPEN_BTN_ICON_GAP = 0;
+
+let _openBtnIconPath = null;
+function tagOpenBtnIconPath() {
+    if (!_openBtnIconPath) {
+        _openBtnIconPath = new Path2D("M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z");
+    }
+    return _openBtnIconPath;
+}
+
+let _openBtnMeasureCtx = null;
+function tagOpenBtnTextWidth() {
+    if (!_openBtnMeasureCtx) {
+        _openBtnMeasureCtx = document.createElement("canvas").getContext("2d");
+    }
+    _openBtnMeasureCtx.font = TAG_OPEN_BTN_FONT;
+    return _openBtnMeasureCtx.measureText($t('openTagSelector')).width;
+}
+
+function tagOpenBtnRect(node) {
+    const width = TAG_OPEN_BTN_PAD_X * 2 + TAG_OPEN_BTN_ICON + TAG_OPEN_BTN_ICON_GAP
+        + tagOpenBtnTextWidth();
+    const top = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - TAG_OPEN_BTN_HEIGHT) / 2;
+    const kinds = titleBtnKinds();
+    const iconsLeft = kinds.length
+        ? titleBtnLeft(node, 0, kinds.length)
+        : node.size[0] - TITLE_BTN_SIZE - TITLE_BTN_MARGIN - TITLE_BTN_GAP;
+    let left = iconsLeft - TAG_OPEN_BTN_GAP - width;
+    if (left < TAG_OPEN_BTN_MIN_LEFT) left = TAG_OPEN_BTN_MIN_LEFT;
+    return { left, top, width, height: TAG_OPEN_BTN_HEIGHT };
+}
+
+function hitTagOpenBtn(node, localPos) {
+    if (!localPos || node.flags?.collapsed) return false;
+    const rect = tagOpenBtnRect(node);
+    return localPos[0] >= rect.left && localPos[0] <= rect.left + rect.width
+        && localPos[1] >= rect.top && localPos[1] <= rect.top + rect.height;
+}
+
+function drawTagOpenBtn(ctx, node, active) {
+    const rect = tagOpenBtnRect(node);
+    const grad = ctx.createLinearGradient(0, rect.top, 0, rect.top + rect.height);
+    grad.addColorStop(0, active ? "#455880" : "#3A486A");
+    grad.addColorStop(1, active ? "#3E4C72" : "#35405D");
+    ctx.beginPath();
+    ctx.roundRect(rect.left, rect.top, rect.width, rect.height, 6);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = active ? "#A1C4FA" : "#76A4F6";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.font = TAG_OPEN_BTN_FONT;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = active ? "#EAF2FF" : "#D6E4FF";
+    ctx.fillText($t('openTagSelector'), rect.left + TAG_OPEN_BTN_PAD_X + TAG_OPEN_BTN_ICON + TAG_OPEN_BTN_ICON_GAP, rect.top + rect.height / 2 + 1);
+    const iconScale = TAG_OPEN_BTN_ICON / 24;
+    ctx.save();
+    ctx.translate(rect.left + TAG_OPEN_BTN_PAD_X, rect.top + (rect.height - TAG_OPEN_BTN_ICON) / 2);
+    ctx.scale(iconScale, iconScale);
+    ctx.strokeStyle = active ? "#EAF2FF" : "#D6E4FF";
+    ctx.lineWidth = TITLE_GLYPH_LINE_WIDTH;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke(tagOpenBtnIconPath());
+    ctx.restore();
+}
+
+function triggerTitleBtn(node, kind) {
+    const widget = node.widgets?.find(w => w.name === "tag_edit");
+    if (!widget) return;
+    if (kind === "insert") showCustomTagInsertSelector(titleBtnAnchor(node, kind), widget, node);
+    else toggleTagEditClear(node);
+}
+
+function applyInputBtnVisibility() {
+    refreshTitleBtnSettings();
+    for (const node of app.graph?._nodes ?? []) {
+        if (node.comfyClass === "TagSelector") node.setDirtyCanvas?.(true, true);
+    }
+    app.graph?.setDirtyCanvas?.(true, true);
+}
+
+function isExpandModeDisabled(widget) {
+    if (!widget) return true;
+    const value = String(widget.value ?? "");
+    if (value === "Disabled") return true;
+    const values = Array.isArray(widget.options?.values) ? widget.options.values : [];
+    const index = values.indexOf(value);
+    if (index < 0) return false;
+    const original = Array.isArray(widget._zhiaiOriginalValues) ? widget._zhiaiOriginalValues : null;
+    return original ? original[index] === "Disabled" : index === 0;
+}
+
+const RANDOM_LOGIC_VALUES = new Set(["Disabled", "Random Tags", "Character Extractor"]);
+
 app.registerExtension({
     name: "zhiai.TagSelector",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
@@ -637,6 +869,19 @@ app.registerExtension({
                     helpElement.style.top = `${transform.f + bcr.y}px`;
                 }
 
+                ctx.save();
+                const kinds = titleBtnKinds();
+                for (let i = 0; i < kinds.length; i++) {
+                    const kind = kinds[i] === "clear" && this._lastClearedTagEdit !== undefined ? "restore" : kinds[i];
+                    ctx.save();
+                    ctx.translate(titleBtnLeft(this, i, kinds.length), titleBtnTop());
+                    ctx.scale(TITLE_BTN_SIZE / 32, TITLE_BTN_SIZE / 32);
+                    drawTitleBtn(ctx, kind, this._tagTitleHovered === kinds[i]);
+                    ctx.restore();
+                }
+
+                drawTagOpenBtn(ctx, this, !!this._tagOpenBtnHovered);
+
                 const x = this.size[0] - iconSize - iconMargin;
                 const y = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
                 const helpActive = !!(this._tagSelectorHelp || this._tagSelectorHelpHovered);
@@ -647,12 +892,23 @@ app.registerExtension({
                 drawNodeHelpButton(ctx, helpActive);
                 
                 ctx.restore();
+                ctx.restore();
                 return r;
             };
 
             const mouseDown = nodeType.prototype.onMouseDown;
             nodeType.prototype.onMouseDown = function (e, localPos, canvas) {
                 const r = mouseDown ? mouseDown.apply(this, arguments) : undefined;
+                if (hitTagOpenBtn(this, localPos)) {
+                    openTagSelector(this);
+                    return true;
+                }
+                const btnKind = hitTitleBtn(this, localPos);
+                if (btnKind) {
+                    hideTitleTip();
+                    triggerTitleBtn(this, btnKind);
+                    return true;
+                }
                 const iconX = this.size[0] - iconSize - iconMargin;
                 const iconY = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
                 if (
@@ -661,7 +917,6 @@ app.registerExtension({
                     localPos[1] > iconY &&
                     localPos[1] < iconY + iconSize
                 ) {
-                    hideTitleTip();
                     this._tagSelectorHelp = !this._tagSelectorHelp;
                     return true;
                 }
@@ -671,6 +926,16 @@ app.registerExtension({
             const mouseMove = nodeType.prototype.onMouseMove;
             nodeType.prototype.onMouseMove = function (e, localPos, canvas) {
                 const r = mouseMove ? mouseMove.apply(this, arguments) : undefined;
+                const openHovered = hitTagOpenBtn(this, localPos);
+                if (openHovered !== this._tagOpenBtnHovered) {
+                    this._tagOpenBtnHovered = openHovered;
+                    this.setDirtyCanvas(true, true);
+                }
+                const btnKind = hitTitleBtn(this, localPos);
+                if (btnKind !== this._tagTitleHovered) {
+                    this._tagTitleHovered = btnKind;
+                    this.setDirtyCanvas(true, true);
+                }
                 const iconX = this.size[0] - iconSize - iconMargin;
                 const iconY = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
                 const hovered = !!localPos
@@ -680,15 +945,19 @@ app.registerExtension({
                     this._tagSelectorHelpHovered = hovered;
                     this.setDirtyCanvas(true, true);
                 }
-                titleTipHovered(hovered, getLocale() === "zh" ? "节点帮助" : "Node help", e);
+                if (hovered) titleTipHovered(true, getLocale() === "zh" ? "节点帮助" : "Node help", e);
+                else if (btnKind) titleTipHovered(true, titleBtnTip(this, btnKind), e);
+                else titleTipHovered(false, getLocale() === "zh" ? "节点帮助" : "Node help", e);
                 return r;
             };
 
             const mouseLeave = nodeType.prototype.onMouseLeave;
             nodeType.prototype.onMouseLeave = function () {
                 const r = mouseLeave ? mouseLeave.apply(this, arguments) : undefined;
-                if (this._tagSelectorHelpHovered) {
+                if (this._tagOpenBtnHovered || this._tagSelectorHelpHovered || this._tagTitleHovered) {
+                    this._tagOpenBtnHovered = false;
                     this._tagSelectorHelpHovered = false;
+                    this._tagTitleHovered = null;
                     this.setDirtyCanvas(true, true);
                 }
                 hideTitleTip();
@@ -705,26 +974,30 @@ app.registerExtension({
                 }
                 return r;
             };
+
+            const configure = nodeType.prototype.configure;
+            nodeType.prototype.configure = function (info) {
+                const values = info && Array.isArray(info.widgets_values) ? info.widgets_values : null;
+                if (values && values.length >= 6 && RANDOM_LOGIC_VALUES.has(String(values[0])) && typeof values[4] === "number") {
+                    info = {
+                        ...info,
+                        widgets_values: [values[5], values[0], values[1], values[2], values[3], values[4], ...values.slice(6)],
+                    };
+                }
+                return configure ? configure.call(this, info) : undefined;
+            };
         }
     },
     nodeCreated(node) {
         if (node.comfyClass === "TagSelector") {
-            const button = node.addWidget("button", $t('openTagSelector'), "open_selector", () => {
-                openTagSelector(node);
-            });
-            button.serialize = false;
-            
-            const applyWidgetVisibility = (widget, show) => {
+            node._lastClearedTagEdit = undefined;
+            node._tagOpenBtnHovered = false;
+            node._tagTitleHovered = null;
+            refreshTitleBtnSettings();
+
+            const applyWidgetDisabled = (widget, disabled) => {
                 if (!widget) return;
-                widget.hidden = !show;
-                widget.disabled = !show;
-                if (widget.options && typeof widget.options === "object") {
-                    widget.options.hidden = !show;
-                }
-                if (widget.inputEl) {
-                    widget.inputEl.disabled = !show;
-                    widget.inputEl.style.display = show ? '' : 'none';
-                }
+                widget.disabled = disabled;
             };
             
             const updateExpandWidgets = () => {
@@ -732,14 +1005,15 @@ app.registerExtension({
                 const outputLangWidget = node.widgets?.find(w => w.name === "output_language");
                 const platformWidget = node.widgets?.find(w => w.name === "platform");
                 const maxTokensWidget = node.widgets?.find(w => w.name === "max_tokens");
-                
-                const isDisabled = !expandModeWidget || expandModeWidget.value === "Disabled";
-                
-                applyWidgetVisibility(outputLangWidget, !isDisabled);
-                applyWidgetVisibility(platformWidget, !isDisabled);
-                applyWidgetVisibility(maxTokensWidget, !isDisabled);
+
+                const isDisabled = isExpandModeDisabled(expandModeWidget);
+
+                applyWidgetDisabled(outputLangWidget, isDisabled);
+                applyWidgetDisabled(platformWidget, isDisabled);
+                applyWidgetDisabled(maxTokensWidget, isDisabled);
+                node.setDirtyCanvas?.(true, true);
             };
-            
+
             const expandModeWidget = node.widgets?.find(w => w.name === "expand_mode");
             if (expandModeWidget) {
                 const originalCallback = expandModeWidget.callback;
@@ -748,146 +1022,8 @@ app.registerExtension({
                     updateExpandWidgets();
                 };
             }
-            
+
             setTimeout(updateExpandWidgets, 100);
-            
-            setTimeout(() => {
-                const tagEditWidget = node.widgets?.find(w => w.name === "tag_edit");
-                if (!tagEditWidget || !tagEditWidget.inputEl) return;
-                
-                const inputEl = tagEditWidget.inputEl;
-                const parentEl = inputEl.parentElement;
-                if (!parentEl) return;
-                
-                if (parentEl.querySelector('.tag-selector-toolbar')) return;
-                
-                parentEl.style.position = "relative";
-                
-                const toolbar = document.createElement('div');
-                toolbar.className = 'tag-selector-toolbar';
-                toolbar.style.cssText = `position: absolute; bottom: 100%; left: 0; display: flex; align-items: center; gap: 4px; padding: 0; margin-bottom: 2px; background: none; border: none; border-radius: 0; z-index: 5;`;
-                
-                const insertBtn = document.createElement("button");
-                insertBtn.type = "button";
-                insertBtn.className = "tag-selector-insert-btn";
-                insertBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:flex;margin:auto;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>`;
-                insertBtn.style.cssText = `display: none; width: 20px; height: 20px; padding: 0; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; cursor: pointer; transition: all 0.2s ease; color: #60a5fa;`;
-                insertBtn.dataset.enabled = String(loadNodeSettings().showInsertBtn !== false);
-                
-                insertBtn.onmouseenter = () => {
-                    insertBtn.style.background = "rgba(59,130,246,0.3)";
-                    insertBtn.style.borderColor = "rgba(59,130,246,0.5)";
-                    showInsertTagTooltip(insertBtn);
-                };
-                insertBtn.onmouseleave = () => {
-                    insertBtn.style.background = "rgba(59,130,246,0.15)";
-                    insertBtn.style.borderColor = "rgba(59,130,246,0.25)";
-                    hideInsertTagTooltip();
-                };
-                insertBtn.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showCustomTagInsertSelector(insertBtn, tagEditWidget, node);
-                };
-                
-                toolbar.appendChild(insertBtn);
-                
-                const inspirationBtn = document.createElement("button");
-                inspirationBtn.type = "button";
-                inspirationBtn.className = "tag-selector-inspiration-btn";
-                inspirationBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:flex;margin:auto;"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path></svg>`;
-                inspirationBtn.style.cssText = `display: none; width: 20px; height: 20px; padding: 0; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.25); border-radius: 5px; cursor: pointer; transition: all 0.2s ease; color: #a78bfa;`;
-                inspirationBtn.dataset.enabled = String(loadNodeSettings().showInspirationBtn !== false);
-                
-                inspirationBtn.onmouseenter = () => {
-                    inspirationBtn.style.background = "rgba(139,92,246,0.3)";
-                    inspirationBtn.style.borderColor = "rgba(139,92,246,0.5)";
-                    showInspirationTooltip(inspirationBtn);
-                };
-                inspirationBtn.onmouseleave = () => {
-                    inspirationBtn.style.background = "rgba(139,92,246,0.15)";
-                    inspirationBtn.style.borderColor = "rgba(139,92,246,0.25)";
-                    hideInspirationTooltip();
-                };
-                inspirationBtn.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showInspirationSelector(inspirationBtn, tagEditWidget);
-                };
-                
-                toolbar.appendChild(inspirationBtn);
-                
-                const clearBtn = document.createElement("button");
-                clearBtn.type = "button";
-                clearBtn.className = "tag-selector-clear-btn";
-                clearBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:flex;margin:auto;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-                clearBtn.style.cssText = `display: none; width: 20px; height: 20px; padding: 0; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.2); border-radius: 5px; cursor: pointer; transition: all 0.2s ease; color: #f87171;`;
-                clearBtn.dataset.enabled = String(loadNodeSettings().showClearBtn !== false);
-                
-                node._lastClearedTagEdit = undefined;
-                
-                clearBtn.onmouseenter = () => {
-                    if (node._lastClearedTagEdit !== undefined) {
-                        clearBtn.style.background = "rgba(34,197,94,0.25)";
-                        clearBtn.style.borderColor = "rgba(34,197,94,0.4)";
-                        clearBtn.style.color = "#4ade80";
-                    } else {
-                        clearBtn.style.background = "rgba(239,68,68,0.25)";
-                        clearBtn.style.borderColor = "rgba(239,68,68,0.4)";
-                        clearBtn.style.color = "#f87171";
-                    }
-                    showClearInputTooltip(clearBtn, node._lastClearedTagEdit !== undefined ? 'restoreInputBtnTooltip' : 'clearInputBtnTooltip');
-                };
-                clearBtn.onmouseleave = () => {
-                    if (node._lastClearedTagEdit !== undefined) {
-                        clearBtn.style.background = "rgba(34,197,94,0.12)";
-                        clearBtn.style.borderColor = "rgba(34,197,94,0.2)";
-                        clearBtn.style.color = "#4ade80";
-                    } else {
-                        clearBtn.style.background = "rgba(239,68,68,0.12)";
-                        clearBtn.style.borderColor = "rgba(239,68,68,0.2)";
-                        clearBtn.style.color = "#f87171";
-                    }
-                    hideClearInputTooltip();
-                };
-                clearBtn.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (node._lastClearedTagEdit !== undefined) {
-                        inputEl.value = node._lastClearedTagEdit;
-                        tagEditWidget.value = node._lastClearedTagEdit;
-                        node._lastClearedTagEdit = undefined;
-                        clearBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:flex;margin:auto;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-                        clearBtn.style.background = "rgba(239,68,68,0.12)";
-                        clearBtn.style.borderColor = "rgba(239,68,68,0.2)";
-                        clearBtn.style.color = "#f87171";
-                        showToast($t('inputRestored'), 'success');
-                    } else {
-                        node._lastClearedTagEdit = inputEl.value;
-                        inputEl.value = "";
-                        tagEditWidget.value = "";
-                        clearBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:flex;margin:auto;"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>`;
-                        clearBtn.style.background = "rgba(34,197,94,0.12)";
-                        clearBtn.style.borderColor = "rgba(34,197,94,0.2)";
-                        clearBtn.style.color = "#4ade80";
-                        showToast($t('inputCleared'), 'success');
-                    }
-                    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-                };
-                
-                toolbar.appendChild(clearBtn);
-                
-                parentEl.appendChild(toolbar);
-                
-                function updateToolbarVisibility() {
-                    const hasEnabled = insertBtn.dataset.enabled === 'true' || inspirationBtn.dataset.enabled === 'true' || clearBtn.dataset.enabled === 'true';
-                    toolbar.style.display = hasEnabled ? 'flex' : 'none';
-                    insertBtn.style.display = insertBtn.dataset.enabled === 'true' ? 'flex' : 'none';
-                    inspirationBtn.style.display = inspirationBtn.dataset.enabled === 'true' ? 'flex' : 'none';
-                    clearBtn.style.display = clearBtn.dataset.enabled === 'true' ? 'flex' : 'none';
-                }
-                updateToolbarVisibility();
-            }, 100);
         }
     }
 });
@@ -4047,7 +4183,6 @@ let adultUnlockTimestamp = 0;
 let adultFailedAttempts = 0;
 let adultLockoutUntil = 0;
 
-const ADULT_SESSION_TIMEOUT = 4 * 60 * 60 * 1000;
 const ADULT_MAX_FAILED_ATTEMPTS = 5;
 const ADULT_LOCKOUT_DURATION = 30000;
 const ADULT_STORAGE_SALT = 'zhiai_adult_v2_salt_2024';
@@ -4085,16 +4220,6 @@ function loadAdultContentSettings() {
         adultContentEnabled = parsed.enabled || false;
         adultContentUnlocked = parsed.unlocked || false;
         adultUnlockTimestamp = parsed.timestamp || 0;
-
-        if (adultContentEnabled && adultUnlockTimestamp > 0) {
-            const elapsed = Date.now() - adultUnlockTimestamp;
-            if (elapsed > ADULT_SESSION_TIMEOUT) {
-                adultContentEnabled = false;
-                adultContentUnlocked = false;
-                adultUnlockTimestamp = 0;
-                saveAdultContentSettings();
-            }
-        }
         updateWindowAdultStatus();
     } catch (e) {
         localStorage.removeItem('zhiai_adult_settings');
@@ -4114,6 +4239,8 @@ function saveAdultContentSettings() {
         localStorage.setItem('zhiai_adult_settings', JSON.stringify(data));
     } catch (e) {}
 }
+
+loadAdultContentSettings();
 
 function _generateVerificationCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -4473,12 +4600,11 @@ function loadNodeSettings() {
             const settings = JSON.parse(saved);
             return {
                 showInsertBtn: settings.showInsertBtn !== false && settings.showInputBtns !== false,
-                showClearBtn: settings.showClearBtn !== false && settings.showInputBtns !== false,
-                showInspirationBtn: settings.showInspirationBtn !== false
+                showClearBtn: settings.showClearBtn !== false && settings.showInputBtns !== false
             };
         }
     } catch (e) {}
-    return { showInsertBtn: true, showClearBtn: true, showInspirationBtn: true };
+    return { showInsertBtn: true, showClearBtn: true };
 }
 
 function saveNodeSettings(settings) {
@@ -4519,101 +4645,6 @@ function createSettingsToggle(initialEnabled, onChange) {
     };
 
     return toggle;
-}
-
-function applyInputBtnVisibility() {
-    const settings = loadNodeSettings();
-    document.querySelectorAll('.tag-selector-toolbar').forEach(toolbar => {
-        const insertBtn = toolbar.querySelector('.tag-selector-insert-btn');
-        const inspirationBtn = toolbar.querySelector('.tag-selector-inspiration-btn');
-        const clearBtn = toolbar.querySelector('.tag-selector-clear-btn');
-        if (insertBtn) insertBtn.dataset.enabled = String(settings.showInsertBtn !== false);
-        if (inspirationBtn) inspirationBtn.dataset.enabled = String(settings.showInspirationBtn !== false);
-        if (clearBtn) clearBtn.dataset.enabled = String(settings.showClearBtn !== false);
-        const hasEnabled = (insertBtn && insertBtn.dataset.enabled === 'true') || (inspirationBtn && inspirationBtn.dataset.enabled === 'true') || (clearBtn && clearBtn.dataset.enabled === 'true');
-        toolbar.style.display = hasEnabled ? 'flex' : 'none';
-        if (insertBtn) insertBtn.style.display = insertBtn.dataset.enabled === 'true' ? 'flex' : 'none';
-        if (inspirationBtn) inspirationBtn.style.display = inspirationBtn.dataset.enabled === 'true' ? 'flex' : 'none';
-        if (clearBtn) clearBtn.style.display = clearBtn.dataset.enabled === 'true' ? 'flex' : 'none';
-    });
-}
-
-let insertTagTooltipEl = null;
-
-function showInsertTagTooltip(btnEl) {
-    hideInsertTagTooltip();
-    insertTagTooltipEl = document.createElement("div");
-    insertTagTooltipEl.style.cssText = `position: fixed; background: rgba(30,41,59,0.95); color: #e2e8f0; padding: 6px 10px; border-radius: 4px; font-size: 13px; z-index: 10004; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1);`;
-    insertTagTooltipEl.textContent = $t('insertTagBtnTooltip');
-    document.body.appendChild(insertTagTooltipEl);
-    const btnRect = btnEl.getBoundingClientRect();
-    const tooltipRect = insertTagTooltipEl.getBoundingClientRect();
-    let left = btnRect.left + (btnRect.width / 2) - (tooltipRect.width / 2);
-    let top = btnRect.top - tooltipRect.height - 6;
-    if (left < 5) left = 5;
-    if (left + tooltipRect.width > window.innerWidth - 5) left = window.innerWidth - tooltipRect.width - 5;
-    if (top < 5) top = btnRect.bottom + 6;
-    insertTagTooltipEl.style.left = left + "px";
-    insertTagTooltipEl.style.top = top + "px";
-}
-
-function hideInsertTagTooltip() {
-    if (insertTagTooltipEl) {
-        insertTagTooltipEl.remove();
-        insertTagTooltipEl = null;
-    }
-}
-
-let clearInputTooltipEl = null;
-
-function showClearInputTooltip(btnEl, key) {
-    hideClearInputTooltip();
-    clearInputTooltipEl = document.createElement("div");
-    clearInputTooltipEl.style.cssText = `position: fixed; background: rgba(30,41,59,0.95); color: #e2e8f0; padding: 6px 10px; border-radius: 4px; font-size: 13px; z-index: 10004; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1);`;
-    clearInputTooltipEl.textContent = $t(key);
-    document.body.appendChild(clearInputTooltipEl);
-    const btnRect = btnEl.getBoundingClientRect();
-    const tooltipRect = clearInputTooltipEl.getBoundingClientRect();
-    let left = btnRect.left + (btnRect.width / 2) - (tooltipRect.width / 2);
-    let top = btnRect.top - tooltipRect.height - 6;
-    if (left < 5) left = 5;
-    if (left + tooltipRect.width > window.innerWidth - 5) left = window.innerWidth - tooltipRect.width - 5;
-    if (top < 5) top = btnRect.bottom + 6;
-    clearInputTooltipEl.style.left = left + "px";
-    clearInputTooltipEl.style.top = top + "px";
-}
-
-function hideClearInputTooltip() {
-    if (clearInputTooltipEl) {
-        clearInputTooltipEl.remove();
-        clearInputTooltipEl = null;
-    }
-}
-
-let inspirationTooltipEl = null;
-
-function showInspirationTooltip(btnEl) {
-    hideInspirationTooltip();
-    inspirationTooltipEl = document.createElement("div");
-    inspirationTooltipEl.style.cssText = `position: fixed; background: rgba(30,41,59,0.95); color: #e2e8f0; padding: 6px 10px; border-radius: 4px; font-size: 13px; z-index: 10004; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1);`;
-    inspirationTooltipEl.textContent = $t('inspirationBtnTooltip');
-    document.body.appendChild(inspirationTooltipEl);
-    const btnRect = btnEl.getBoundingClientRect();
-    const tooltipRect = inspirationTooltipEl.getBoundingClientRect();
-    let left = btnRect.left + (btnRect.width / 2) - (tooltipRect.width / 2);
-    let top = btnRect.top - tooltipRect.height - 6;
-    if (left < 5) left = 5;
-    if (left + tooltipRect.width > window.innerWidth - 5) left = window.innerWidth - tooltipRect.width - 5;
-    if (top < 5) top = btnRect.bottom + 6;
-    inspirationTooltipEl.style.left = left + "px";
-    inspirationTooltipEl.style.top = top + "px";
-}
-
-function hideInspirationTooltip() {
-    if (inspirationTooltipEl) {
-        inspirationTooltipEl.remove();
-        inspirationTooltipEl = null;
-    }
 }
 
 async function showInspirationSelector(anchorEl, tagEditWidget) {
@@ -5051,23 +5082,6 @@ function showSettingsDropdown(anchorEl) {
     });
     insertBtnRow.appendChild(insertBtnToggle);
     panel.appendChild(insertBtnRow);
-
-    const inspirationBtnRow = DOM.div(`display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: rgba(30,41,59,0.5); border: 1px solid rgba(148,163,184,0.15); border-radius: 8px; transition: all 0.2s ease;`);
-    const inspirationBtnLeft = DOM.div(`display: flex; flex-direction: column; gap: 1px;`);
-    const inspirationBtnLabel = DOM.span(`font-size: 13px; font-weight: 500; color: #e2e8f0;`);
-    inspirationBtnLabel.textContent = $t('showInspirationBtn');
-    inspirationBtnLeft.appendChild(inspirationBtnLabel);
-    const inspirationBtnDesc = DOM.span(`font-size: 11px; color: #64748b;`);
-    inspirationBtnDesc.textContent = $t('showInspirationBtnDesc');
-    inspirationBtnLeft.appendChild(inspirationBtnDesc);
-    inspirationBtnRow.appendChild(inspirationBtnLeft);
-    const inspirationBtnToggle = createSettingsToggle(nodeSettings.showInspirationBtn !== false, (enabled) => {
-        nodeSettings.showInspirationBtn = enabled;
-        saveNodeSettings(nodeSettings);
-        applyInputBtnVisibility();
-    });
-    inspirationBtnRow.appendChild(inspirationBtnToggle);
-    panel.appendChild(inspirationBtnRow);
 
     const clearBtnRow = DOM.div(`display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: rgba(30,41,59,0.5); border: 1px solid rgba(148,163,184,0.15); border-radius: 8px; transition: all 0.2s ease;`);
     const clearBtnLeft = DOM.div(`display: flex; flex-direction: column; gap: 1px;`);
