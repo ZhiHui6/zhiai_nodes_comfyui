@@ -1,6 +1,6 @@
 [project]
 name = "zhiai-nodes-comfyui"
-description = "ComfyUI custom nodes collection with 54 nodes: multi-engine translation, text processing, prompt generators, image tools, vision understanding, LM Studio integration, and more."
+description = "A 52-node ComfyUI toolkit: multi-engine translation, prompt and tag/preset pickers, text utilities, LoRA stack management, image and video tools, local and online vision LLM nodes, hardware monitoring, and a built-in English/Chinese UI."
 version = "2.0.0"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -18,6 +18,7 @@ dependencies = [
     "opencv-python",
     "openai>=1.0.0",
     "nvidia-ml-py",
+    "psutil",
     "cryptography",
     "scikit-image",
 ]
@@ -29,7 +30,11 @@ Documentation = "https://github.com/ZhiHui6/zhiai_nodes_comfyui#readme"
 Issues = "https://github.com/ZhiHui6/zhiai_nodes_comfyui/issues"
 
 [tool.comfy]
-PublisherId = "ZhiHui6"
+PublisherId = "zhihui6"
 DisplayName = "ZhiAI Nodes"
 Icon = "https://raw.githubusercontent.com/ZhiHui6/zhiai_nodes_comfyui/main/icon.png"
-includes = []
+includes = [
+    "Nodes/TypeDesigner/Preview_images",
+    "Nodes/SystemPrompt/prompt_preset_flies",
+    "Nodes/PromptCardSelector/Built-in",
+]
