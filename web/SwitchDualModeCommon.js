@@ -102,7 +102,7 @@ const NOTE_TOKENS = {
     actionNeutralHover: "#475569",
 };
 
-function openNoteDialog(node, config, portBaseLabel, onSaved) {
+export function openNoteDialog(node, config, portBaseLabel, onSaved) {
     const overlayId = config.overlayId;
     if (document.getElementById(overlayId)) return;
 

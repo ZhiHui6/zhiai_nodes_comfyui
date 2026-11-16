@@ -1,36 +1,32 @@
 import { app } from "/scripts/app.js";
-import { getLocale, isVueNodeRendering } from "./zhiai_i18n.js";
+import { getLocale } from "./zhiai_i18n.js";
+import {
+	drawNodeSettingsButton,
+	titleTipHovered,
+	hideTitleTip,
+} from "./node_title_icons.js";
+import { openNoteDialog } from "./SwitchDualModeCommon.js";
+
+// 图像拼接与标题（ImageGridTitle）的前端备注方案与「文本切换器」保持一致：
+// - 标题栏齿轮图标（位于帮助"?"图标左侧）打开设置对话框，编辑每张图的备注；
+// - 备注写入隐藏的 titles 组件（作为标题条文案，随工作流保存）；
+// - 备注绘制在对应图像输入端口名称后面，作为节点上的即时提示。
 
 const NODE_NAME = "ImageGridTitle";
 const IMAGE_TYPE = "IMAGE";
 const TITLES_WIDGET = "titles";
-const CONTAINER_NAME = "zhiai_title_rows";
-const BOX_WIDTH = 160;
-const BOX_HEIGHT = 24;
-const RIGHT_MARGIN = 8;
-const FALLBACK_ROW_HEIGHT = 30;
-const PROBE_WIDTH = 100;
-const MAX_OFFSET = 8000;
+const PROP_KEY = "zh_imagegridtitle";
+const OVERLAY_ID = "zhiai-imagegridtitle-note-overlay";
+const DEFAULT_NOTE_COLOR = "#93C5FD";
+
+const ICON_SIZE = 24;
+const ICON_MARGIN = 4;
+const ICON_GAP = 4;
+
+// 与 litegraph 绘制端口标签时使用的字体/基线保持一致
+const NOTE_FONT = "12px Inter";
+const NOTE_BASELINE = "alphabetic";
 const BINDING_RE = /^\s*(\d+)\s*[:：=]\s*(.*)$/;
-
-const STYLE_ID = "zhiai-image-grid-title-style";
-const CSS = `
-.zhiai-tgr-layer{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;overflow:visible;z-index:5}
-.zhiai-tgr-probe{position:absolute;left:0;top:0;width:${PROBE_WIDTH}px;height:1px;visibility:hidden;pointer-events:none}
-.zhiai-tgr-layer input{position:absolute;pointer-events:auto;box-sizing:border-box;height:${BOX_HEIGHT}px;width:${BOX_WIDTH}px;background:var(--comfy-input-bg,#222222);border:1px solid var(--border-color,#444444);border-radius:6px;color:var(--fg-color,#dddddd);font-size:12px;line-height:1;padding:0 8px;outline:none}
-.zhiai-tgr-layer input:focus{border-color:var(--comfy-accent-color,#3B82F6)}
-.zhiai-tgr-layer.zhiai-tgr-fb{position:relative;width:100%;height:auto}
-.zhiai-tgr-layer.zhiai-tgr-fb .zhiai-tgr-probe{display:none}
-.zhiai-tgr-layer.zhiai-tgr-fb input{right:${RIGHT_MARGIN}px;left:auto}
-`;
-
-function ensureStyle() {
-	if (document.getElementById(STYLE_ID)) return;
-	const style = document.createElement("style");
-	style.id = STYLE_ID;
-	style.textContent = CSS;
-	document.head.appendChild(style);
-}
 
 function imageSlots(node) {
 	const slots = [];
@@ -38,6 +34,10 @@ function imageSlots(node) {
 		if (slot && slot.type === IMAGE_TYPE) slots.push({ slot, index });
 	});
 	return slots;
+}
+
+function titlesWidget(node) {
+	return node.widgets?.find((widget) => widget.name === TITLES_WIDGET);
 }
 
 function parseTitles(value) {
@@ -78,206 +78,269 @@ function serializeTitles(lines, binding) {
 		.join("\n");
 }
 
-function commitValue(state, portCount, index, text) {
-	const widget = state.titlesWidget;
-	const lines = titlesForPorts(widget.value, portCount);
-	lines[index] = text;
-	let binding = parseTitles(widget.value).binding;
-	const last = lines.reduce((acc, item, i) => (item ? i : acc), -1);
-	const trimmed = lines.slice(0, last + 1);
-	if (!binding && trimmed.some((item) => !item)) binding = true;
-	widget.value = serializeTitles(trimmed, binding);
+function portBaseLabel(index) {
+	return getLocale() === "zh" ? `图像${index}` : `Image ${index}`;
 }
 
-function placeholderFor(index) {
-	return getLocale() === "zh" ? `第 ${index + 1} 张的标题` : `Title ${index + 1}`;
-}
-
-function rebuild(node, state) {
-	const ports = imageSlots(node);
-	const lines = titlesForPorts(state.titlesWidget.value, ports.length);
-	const container = state.container;
-	for (const child of [...container.children]) {
-		if (child !== state.probe) child.remove();
+function fitText(ctx, text, maxWidth) {
+	if (ctx.measureText(text).width <= maxWidth) return text;
+	let short = text;
+	while (short.length > 1 && ctx.measureText(short + "…").width > maxWidth) {
+		short = short.slice(0, -1);
 	}
-	state.inputs = ports.map(({ slot, index }, i) => {
-		const input = document.createElement("input");
-		input.type = "text";
-		input.value = lines[i];
-		input.placeholder = placeholderFor(i);
-		input.addEventListener("input", () => {
-			commitValue(state, ports.length, i, input.value);
-		});
-		container.appendChild(input);
-		return { el: input, slotIndex: index };
-	});
-	state.signature = ports.map(({ slot }) => slot.name ?? "").join("|");
+	return short + "…";
 }
 
-function hideTitlesWidget(state) {
-	const widget = state.titlesWidget;
+function hideTitlesWidget(widget) {
 	if (!widget) return;
-	if (widget.computeSize !== state.hideSize) widget.computeSize = state.hideSize;
-	if (widget.computeLayoutSize !== state.hideLayout) widget.computeLayoutSize = state.hideLayout;
-	if (widget.draw !== state.noopDraw) widget.draw = state.noopDraw;
-	if (widget.options && widget.options.getMinHeight !== state.hideHeight) {
-		widget.options.getMinHeight = state.hideHeight;
-	}
+	widget.options = widget.options || {};
+	widget.options.hidden = true;
+	widget.options.collapsed = true;
+	widget.hidden = true;
+	widget.serialize = true;
+	widget.computeSize = () => [0, -4];
+	widget.draw = () => {};
 	if (widget.element && widget.element.style.display !== "none") {
 		widget.element.style.display = "none";
 	}
 }
 
-function layerScale(state) {
-	const rect = state.probe.getBoundingClientRect();
-	if (rect.width > 0) return rect.width / PROBE_WIDTH;
-	const scale = app.canvas?.ds?.scale;
-	return typeof scale === "number" && scale > 0 ? scale : 0;
+function settingsIconLeft(node) {
+	// 帮助图标位于 node.size[0] - ICON_SIZE - ICON_MARGIN，本图标紧邻其左侧
+	return node.size[0] - ICON_SIZE - ICON_MARGIN - (ICON_SIZE + ICON_GAP);
 }
 
-function applyCanvasLayout(node, state) {
-	const ds = app.canvas?.ds;
-	const canvasEl = app.canvas?.canvas;
-	const ports = imageSlots(node);
-	if (!ds || !canvasEl || !ports.length) return false;
-	if (!isFinite(node.pos?.[0]) || !isFinite(node.pos?.[1])) return false;
-	const canvasRect = canvasEl.getBoundingClientRect();
-	if (!canvasRect.width || !canvasRect.height) return false;
-	const boxRect = state.container.getBoundingClientRect();
-	if (!isFinite(boxRect.left) || !isFinite(boxRect.top)) return false;
-	const scale = layerScale(state);
-	if (!isFinite(scale) || scale <= 0) return false;
-	const zoom = ds.scale;
-	const edge =
-		canvasRect.left + (node.pos[0] + (node.size?.[0] ?? 0) - RIGHT_MARGIN + ds.offset[0]) * zoom;
-	const localLeft = (edge - BOX_WIDTH * scale - boxRect.left) / scale;
-	if (!isFinite(localLeft) || Math.abs(localLeft) > MAX_OFFSET) return false;
-	const placed = [];
-	for (const item of state.inputs) {
-		const point = node.getConnectionPos(true, item.slotIndex, [0, 0]);
-		if (!Array.isArray(point) || !isFinite(point[1])) return false;
-		const centerY = canvasRect.top + (point[1] + ds.offset[1]) * zoom;
-		const localTop = (centerY - (BOX_HEIGHT / 2) * scale - boxRect.top) / scale;
-		if (!isFinite(localTop) || Math.abs(localTop) > MAX_OFFSET) return false;
-		placed.push({ el: item.el, left: localLeft, top: localTop });
-	}
-	state.container.classList.remove("zhiai-tgr-fb");
-	state.container.style.transform = "";
-	state.container.style.height = "";
-	state.container.style.width = "";
-	for (const { el, left, top } of placed) {
-		el.style.left = `${Math.round(left)}px`;
-		el.style.top = `${Math.round(top)}px`;
-		el.style.display = "";
-	}
-	return true;
+function settingsIconTop() {
+	return -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - ICON_SIZE) / 2;
 }
 
-function applyFallbackLayout(node, state) {
-	state.container.classList.add("zhiai-tgr-fb");
-	state.container.style.transform = "";
-	state.container.style.height = `${Math.max(1, state.inputs.length) * FALLBACK_ROW_HEIGHT}px`;
-	state.inputs.forEach((item, i) => {
-		item.el.style.top = `${i * FALLBACK_ROW_HEIGHT + (FALLBACK_ROW_HEIGHT - BOX_HEIGHT) / 2}px`;
-		item.el.style.left = "";
-		item.el.style.display = "";
-	});
+function hitSettingsIcon(node, localPos) {
+	if (!localPos || node.flags?.collapsed) return false;
+	const left = settingsIconLeft(node);
+	const top = settingsIconTop();
+	return (
+		localPos[0] > left &&
+		localPos[0] < left + ICON_SIZE &&
+		localPos[1] > top &&
+		localPos[1] < top + ICON_SIZE
+	);
 }
 
-function watchAndAlign(node, state) {
-	if (state.destroyed || !document.body.contains(state.container)) return;
-	hideTitlesWidget(state);
-	const ports = imageSlots(node);
-	const signature = ports.map(({ slot }) => slot.name ?? "").join("|");
-	if (signature !== state.signature) rebuild(node, state);
-	const visibleNodes = app.canvas?.visible_nodes;
-	if (Array.isArray(visibleNodes) && !visibleNodes.includes(node)) return;
-	if (!isVueNodeRendering()) {
-		try {
-			if (applyCanvasLayout(node, state)) return;
-		} catch (_) {
-		}
-	}
-	applyFallbackLayout(node, state);
+function noteLines(node) {
+	const widget = titlesWidget(node);
+	const slots = imageSlots(node);
+	return titlesForPorts(widget?.value ?? "", slots.length);
 }
 
-function startLoop(node, state) {
-	const tick = () => {
-		if (state.destroyed) return;
-		try {
-			watchAndAlign(node, state);
-		} catch (_) {
-		}
-		state.raf = requestAnimationFrame(tick);
-	};
-	state.raf = requestAnimationFrame(tick);
+function commitNote(node, index, text) {
+	const widget = titlesWidget(node);
+	if (!widget) return;
+	const count = Math.max(imageSlots(node).length, index);
+	const lines = titlesForPorts(widget.value ?? "", count);
+	lines[index - 1] = String(text ?? "");
+	let last = lines.length - 1;
+	while (last >= 0 && !lines[last]) last -= 1;
+	const trimmed = lines.slice(0, last + 1);
+	let binding = parseTitles(widget.value ?? "").binding;
+	if (!binding && trimmed.some((item) => !item)) binding = true;
+	widget.value = serializeTitles(trimmed, binding);
 }
 
 function setupNode(node) {
-	if (node._zhiaiTitleRows) return;
-	ensureStyle();
-	const titlesWidget = node.widgets?.find((widget) => widget.name === TITLES_WIDGET);
-	if (!titlesWidget || typeof node.addDOMWidget !== "function") return;
-	const container = document.createElement("div");
-	container.className = "zhiai-tgr-layer";
-	const probe = document.createElement("div");
-	probe.className = "zhiai-tgr-probe";
-	container.appendChild(probe);
-	const domWidget = node.addDOMWidget(CONTAINER_NAME, "custom", container, { serialize: false });
-	domWidget.serializeValue = () => undefined;
-	domWidget.computeSize = () => [0, 0];
-	const state = {
-		container,
-		probe,
-		titlesWidget,
-		inputs: [],
-		signature: "",
-		raf: 0,
-		destroyed: false,
-		hideSize: () => [0, 0],
-		hideLayout: () => ({ minHeight: 0, maxHeight: 0, minWidth: 0 }),
-		hideHeight: () => 0,
-		noopDraw: () => {},
+	if (node._zhaiImageGridNotes) return;
+	node._zhaiImageGridNotes = true;
+	node.properties = node.properties || {};
+
+	const widget = titlesWidget(node);
+	hideTitlesWidget(widget);
+
+	node.getNoteCount = function () {
+		return Math.max(1, imageSlots(this).length);
 	};
-	node._zhiaiTitleRows = state;
-	const fromIndex = node.widgets.indexOf(domWidget);
-	if (fromIndex >= 0) node.widgets.splice(fromIndex, 1);
-	const titlesIndex = node.widgets.indexOf(titlesWidget);
-	node.widgets.splice(titlesIndex >= 0 ? titlesIndex + 1 : node.widgets.length, 0, domWidget);
-	hideTitlesWidget(state);
-	rebuild(node, state);
-	startLoop(node, state);
+
+	node.getNote = function (index) {
+		return noteLines(this)[index - 1] ?? "";
+	};
+
+	node.setNote = function (index, value) {
+		commitNote(this, index, value);
+	};
+
+	node.getNoteColor = function () {
+		const color = this.properties?.[PROP_KEY]?.color;
+		return typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color)
+			? color
+			: DEFAULT_NOTE_COLOR;
+	};
+
+	node.setNoteColor = function (color) {
+		this.properties = this.properties || {};
+		this.properties[PROP_KEY] = Object.assign({}, this.properties[PROP_KEY], {
+			color,
+		});
+	};
+
+	node.saveNoteValues = function () {
+		try {
+			const count = this.getNoteCount();
+			const notes = [];
+			for (let i = 1; i <= count; i++) notes.push(this.getNote(i));
+			this.properties = this.properties || {};
+			this.properties[PROP_KEY] = { count, notes, color: this.getNoteColor() };
+		} catch (_) {}
+	};
+
+	// 端口基础名称不拼接备注，备注单独绘制在名称后面
+	node.applyNoteLabels = function () {};
+
+	// 在图像输入端口名称后绘制备注文字，与 litegraph 的标签落点保持一致
+	node.drawImageNotes = function (ctx, opts) {
+		if (opts?.lowQuality) return;
+		const slots = imageSlots(this);
+		if (!slots.length) return;
+		const notes = noteLines(this);
+		const color = this.getNoteColor();
+		for (let i = 0; i < slots.length; i++) {
+			const { slot, index } = slots[i];
+			if (slot.isWidgetInputSlot) continue;
+			const note = (notes[i] ?? "").trim();
+			if (!note) continue;
+
+			let cx = null;
+			let cy = null;
+			const centre = slot._centreOffset;
+			if (Array.isArray(centre)) {
+				cx = centre[0];
+				cy = centre[1];
+			} else if (typeof this.getConnectionPos === "function") {
+				const cp = this.getConnectionPos(true, index, []);
+				if (cp) {
+					cx = cp[0] - this.pos[0];
+					cy = cp[1] - this.pos[1];
+				}
+			}
+			if (cx === null) continue;
+
+			const labelText =
+				slot.label || slot.localized_name || portBaseLabel(i + 1);
+			const labelUp = slot.dir === LiteGraph.UP;
+			const labelX = labelUp ? cx : cx + 10;
+			const labelY = labelUp ? cy - 10 : cy + 5;
+
+			ctx.save();
+			ctx.font = NOTE_FONT;
+			ctx.textAlign = "left";
+			ctx.textBaseline = NOTE_BASELINE;
+			const labelWidth = ctx.measureText(labelText).width;
+			const noteX = labelX + labelWidth + 6;
+			const maxWidth = this.size[0] - noteX - 8;
+			if (maxWidth > 24) {
+				ctx.fillStyle = color;
+				ctx.fillText(fitText(ctx, `· ${note}`, maxWidth), noteX, labelY);
+			}
+			ctx.restore();
+		}
+	};
 }
 
 app.registerExtension({
-	name: "zhiai_nodes.ImageGridTitleTitles",
+	name: "zhiai_nodes.ImageGridTitleNotes",
 	beforeRegisterNodeDef(nodeType, nodeData) {
 		if (nodeData?.name !== NODE_NAME) return;
+
 		const onNodeCreated = nodeType.prototype.onNodeCreated;
 		nodeType.prototype.onNodeCreated = function () {
 			const result = onNodeCreated?.apply(this, arguments);
 			setupNode(this);
 			return result;
 		};
-		const onConfigure = nodeType.prototype.onConfigure;
-		nodeType.prototype.onConfigure = function () {
-			const result = onConfigure?.apply(this, arguments);
-			const state = this._zhiaiTitleRows;
-			if (state) setTimeout(() => {
-				if (!state.destroyed) rebuild(this, state);
-			}, 0);
-			return result;
-		};
-		const onRemoved = nodeType.prototype.onRemoved;
-		nodeType.prototype.onRemoved = function () {
-			const state = this._zhiaiTitleRows;
-			if (state) {
-				state.destroyed = true;
-				cancelAnimationFrame(state.raf);
-				state.container.remove();
-				this._zhiaiTitleRows = null;
-			}
-			return onRemoved?.apply(this, arguments);
-		};
+
+		// 原型级补丁只装一次，避免每创建一个节点再包一层
+		if (!nodeType.prototype._zhImageGridNotesPatched) {
+			nodeType.prototype._zhImageGridNotesPatched = true;
+
+			const drawSlotsOriginal = nodeType.prototype.drawSlots;
+			nodeType.prototype.drawSlots = function (ctx, opts) {
+				const result = drawSlotsOriginal
+					? drawSlotsOriginal.apply(this, arguments)
+					: undefined;
+				try {
+					this.drawImageNotes?.(ctx, opts);
+				} catch (_) {}
+				return result;
+			};
+
+			// 标题栏绘制齿轮图标（帮助"?"图标左侧）
+			const onDrawForeground = nodeType.prototype.onDrawForeground;
+			nodeType.prototype.onDrawForeground = function (ctx) {
+				const result = onDrawForeground
+					? onDrawForeground.apply(this, arguments)
+					: undefined;
+				// 组件节点渲染可能在创建后延迟生成 DOM 元素，绘制时再兜底隐藏一次
+				hideTitlesWidget(titlesWidget(this));
+				if (this.flags?.collapsed) return result;
+				ctx.save();
+				ctx.translate(settingsIconLeft(this), settingsIconTop());
+				ctx.scale(ICON_SIZE / 32, ICON_SIZE / 32);
+				drawNodeSettingsButton(ctx, !!this._zhaiNoteHovered);
+				ctx.restore();
+				return result;
+			};
+
+			const onMouseDown = nodeType.prototype.onMouseDown;
+			nodeType.prototype.onMouseDown = function (e, localPos) {
+				if (hitSettingsIcon(this, localPos)) {
+					hideTitleTip();
+					openNoteDialog(
+						this,
+						{
+							overlayId: OVERLAY_ID,
+							dialogTitleZh: "图像拼接设置",
+							dialogTitleEn: "Image Grid Settings",
+							hintZh:
+								"备注会显示在对应图像端口名称后面，并作为标题条文案写入输出图。",
+							hintEn:
+								"Notes are shown after the corresponding image port and used as title text in the output.",
+						},
+						(index) => portBaseLabel(index),
+						() => {
+							this.saveNoteValues?.();
+							this.applyNoteLabels?.();
+							this.setDirtyCanvas?.(true, true);
+							app.graph.setDirtyCanvas(true, true);
+						}
+					);
+					return true;
+				}
+				return onMouseDown?.apply(this, arguments);
+			};
+
+			const onMouseMove = nodeType.prototype.onMouseMove;
+			nodeType.prototype.onMouseMove = function (e, localPos) {
+				const result = onMouseMove?.apply(this, arguments);
+				const hovered = hitSettingsIcon(this, localPos);
+				if (hovered !== this._zhaiNoteHovered) {
+					this._zhaiNoteHovered = hovered;
+					this.setDirtyCanvas?.(true, true);
+				}
+				if (hovered) {
+					titleTipHovered(true, getLocale() === "zh" ? "备注" : "Notes", e);
+				} else if (!this._zhaiHelpHovered) {
+					titleTipHovered(false, getLocale() === "zh" ? "备注" : "Notes", e);
+				}
+				return result;
+			};
+
+			const onMouseLeave = nodeType.prototype.onMouseLeave;
+			nodeType.prototype.onMouseLeave = function () {
+				const result = onMouseLeave?.apply(this, arguments);
+				if (this._zhaiNoteHovered) {
+					this._zhaiNoteHovered = false;
+					this.setDirtyCanvas?.(true, true);
+				}
+				hideTitleTip();
+				return result;
+			};
+		}
 	},
 });
